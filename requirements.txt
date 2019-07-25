@@ -1,0 +1,2 @@
+# The cidc_api_models package
+git+https://github.com/CIMAC-CIDC/cidc-api-gae
