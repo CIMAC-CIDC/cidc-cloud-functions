@@ -40,10 +40,10 @@ script:
 
 deploy:
   - provider: script
-    script: echo "Deploy cloud functions to staging here..."
+    script: bash deploy/pubsub.sh ingest_upload uploads .env.staging.yaml
     on:
       branch: master
   - provider: script
-    script: echo "Deploy cloud functions to production here..."
+    script: bash deploy/pubsub.sh ingest_upload uploads .env.prod.yaml
     on:
       branch: production

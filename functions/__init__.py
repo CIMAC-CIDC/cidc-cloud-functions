@@ -1,3 +1,3 @@
-"""Entrypoint for CIDC cloud functions."""
+"""The CIDC cloud functions."""
 
-from functions import *
+from .uploads import ingest_upload
