@@ -49,4 +49,3 @@ def ingest_upload(event: dict, context: BackgroundContext):
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
     return jsonify(url_mapping)
-
