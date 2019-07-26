@@ -2,6 +2,24 @@
 import base64
 from typing import NamedTuple
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from .settings import SQLALCHEMY_DATABASE_URI
+
+_session = None
+
+
+def get_db_session():
+    """Get the current SQLAlchemy session"""
+    global _session
+
+    if not _session:
+        engine = create_engine(SQLALCHEMY_DATABASE_URI)
+        _session = sessionmaker(bind=engine)()
+
+    return _session
+
 
 def extract_pubsub_data(event: dict):
     """Pull out and decode data from a pub/sub event."""
