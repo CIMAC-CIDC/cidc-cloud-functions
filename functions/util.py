@@ -22,4 +22,3 @@ class BackgroundContext(NamedTuple):
     timestamp: str  # ISO 8601
     event_type: str  # e.g., "google.pubsub.topic.publish"
     resource: str
-

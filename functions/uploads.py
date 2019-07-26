@@ -15,4 +15,3 @@ def ingest_upload(event: dict, context: BackgroundContext):
     """
     job_id = extract_pubsub_data(event)
     print(f"Received upload success event for Job {job_id}")
-
