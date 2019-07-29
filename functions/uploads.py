@@ -2,8 +2,10 @@
 import base64
 
 from flask import jsonify
+from google.cloud import storage
 from cidc_api.models import UploadJobs
 
+from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, get_db_session
 
 
@@ -22,6 +24,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     print("Detected completed upload job for user %s" % job.uploader_email)
 
+    # TODO: trail id extraction should be owned by cidc_schemas.prism
     study_id_field = "lead_organization_study_id"
     if not study_id_field in job.metadata_json_patch:
         # TODO: improve this error reporting...
@@ -43,8 +46,26 @@ def ingest_upload(event: dict, context: BackgroundContext):
         target_url = "/".join(upload_url.split("/")[:-2])
         url_mapping[upload_url] = target_url
 
-        print(f"(DRY RUN) copying {upload_url} to {target_url}")
+        # Copy the uploaded GCS object to the data bucket
+        _copy_gcs_object(
+            GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
+        )
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
     return jsonify(url_mapping)
+
+
+def _copy_gcs_object(source_bucket, source_object, target_bucket, target_object):
+    """Copy a GCS object from one bucket to another."""
+    print(
+        f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
+    )
+    storage_client = storage.Client()
+    from_bucket = storage_client.get_bucket(source_bucket)
+    from_object = from_bucket.blob(source_object)
+    to_bucket = storage_client.get_bucket(target_bucket)
+    to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
+    print(
+        f"Copied gs://{from_bucket.name}/{from_object.name} to gs://{to_bucket.name}/{to_object.name}"
+    )

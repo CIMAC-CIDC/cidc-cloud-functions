@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from cidc_api.models import UploadJobs
 
 from tests.util import make_pubsub_event, with_app_context
-from functions.uploads import ingest_upload
+from functions.uploads import ingest_upload, _copy_gcs_object
 
 
 @with_app_context
@@ -31,9 +31,15 @@ def test_ingest_upload(db_session, monkeypatch):
     find_by_id.return_value = job
     monkeypatch.setattr(UploadJobs, "find_by_id", find_by_id)
 
+    # Mock data transfer functionality
+    _copy_gcs_object = MagicMock()
+    monkeypatch.setattr("functions.uploads._copy_gcs_object", _copy_gcs_object)
+
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None)
 
     assert response.json[URI1 + TS_AND_PATH] == URI1
     assert response.json[URI2 + TS_AND_PATH] == URI2
     find_by_id.assert_called_once_with(JOB_ID, session=db_session)
+    # Check that we copied multiple objects
+    _copy_gcs_object.assert_called() and not _copy_gcs_object.assert_called_once()

@@ -15,3 +15,5 @@ if not os.environ.get("GCP_PROJECT"):
 
 TESTING = os.environ.get("TESTING")
 SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
+GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
+GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
