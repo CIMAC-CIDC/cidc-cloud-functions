@@ -15,7 +15,7 @@ if not GOOGLE_CLOUD_PROJECT:
     load_dotenv()
     GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
-
-SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri()
+TESTING = os.environ.get("TESTING")
+SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_UPLOAD_TOPIC = os.environ.get("GOOGLE_UPLOAD_TOPIC")
