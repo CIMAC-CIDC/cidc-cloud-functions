@@ -15,7 +15,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     TODO: actually implement the above functionality.
     """
-    job_id = extract_pubsub_data(event)
+    job_id = int(extract_pubsub_data(event))
     session = get_db_session()
 
     job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
