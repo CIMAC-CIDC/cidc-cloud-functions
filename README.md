@@ -58,8 +58,4 @@ bash deploy/pubsub.sh $ENTRYPOINT $TOPIC $ENVFILE
 
 where `$PROJECT` is the project you want to deploy to, `$ENTRYPOINT` is the name of the function in your code, `$TOPIC` is the pub/sub topic this function subscribes to, and `$ENVFILE` is the path to the local file containing environment variable configurations for this function.
 
-<<<<<<< HEAD
-As functions with other types of triggers (e.g., HTTP or Cloud SQL) are added, other convenience scripts will be added too, but if you'd rather use `gcloud` directly, `gcloud functions deploy --help` is a great place to start.
-=======
 As functions with other types of triggers are added (e.g., HTTP or Cloud SQL), other convenience scripts will be added too, but if you'd rather use `gcloud` directly, `gcloud functions deploy --help` is a great place to start.
->>>>>>> Add note on CI/CD to README
