@@ -47,11 +47,21 @@ script:
   - black --check functions main.py --target-version=py36
 
 deploy:
+  # Staging functions
   - provider: script
     script: bash deploy/pubsub.sh ingest_upload uploads .env.staging.yaml
     on:
       branch: master
   - provider: script
+    script: bash deploy/pubsub.sh send_email emails .env.staging.yaml
+    on:
+      branch: master
+  # Production functions
+  - provider: script
     script: bash deploy/pubsub.sh ingest_upload uploads .env.prod.yaml
+    on:
+      branch: production
+  - provider: script
+    script: bash deploy/pubsub.sh send_email emails .env.prod.yaml
     on:
       branch: production

@@ -1,7 +1,8 @@
 """Configuration for CIDC functions."""
 import os
 
-from cidc_api.config import get_sqlalchemy_database_uri
+from cidc_api.config import get_sqlalchemy_database_uri, get_secret_manager
+
 
 # Cloud Functions provide the current GCP project id
 # in the environment variable GCP_PROJECT. If this
@@ -15,9 +16,13 @@ if not GCP_PROJECT:
     load_dotenv()
 
 TESTING = os.environ.get("TESTING")
+secrets = get_secret_manager(TESTING)
+
 SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
+
+SENDGRID_API_KEY = secrets.get("SENDGRID_API_KEY")
 
 # Check for configuration that must be defined if we're running in GCP
 if GCP_PROJECT:
