@@ -1,6 +1,4 @@
 """A pub/sub triggered functions that respond to data upload events"""
-import base64
-
 from flask import jsonify
 from google.cloud import storage
 from cidc_api.models import UploadJobs

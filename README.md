@@ -11,6 +11,7 @@ Google Cloud Functions for carrying out event-driven tasks in the CIDC.
 
 - Pub/Sub-triggered:
   - `ingest_upload`: when a successful upload job is published to the "uploads" topic, transfers data from the upload bucket to the data bucket in GCS.
+  - `send_email`: when an email is published to the "emails" topic, sends the email using the SendGrid API.
 
 ## Development
 
