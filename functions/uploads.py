@@ -53,7 +53,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     # Add metadata for this upload to the database
     print("Merging metadata from upload %d into trial %s" % (job.id, trial_id))
-    TrialMetadata.patch_trial_metadata(trial_id, metadata_with_urls)
+    TrialMetadata.patch_trial_metadata(trial_id, metadata_with_urls, session=session)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
