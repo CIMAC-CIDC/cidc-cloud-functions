@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock
 
-from cidc_api.models import UploadJobs
+from cidc_api.models import UploadJobs, TrialMetadata
 
 from tests.util import make_pubsub_event, with_app_context
-from functions.uploads import ingest_upload, _copy_gcs_object
+from functions.uploads import ingest_upload
 
 
 @with_app_context
@@ -26,14 +26,21 @@ def test_ingest_upload(db_session, monkeypatch):
 
     # Since the test database isn't yet set up with migrations,
     # it won't have the correct relations in it, so we can't actually
-    # store or retrieve data from it.
+    # store or retrieve data
     find_by_id = MagicMock()
     find_by_id.return_value = job
     monkeypatch.setattr(UploadJobs, "find_by_id", find_by_id)
 
     # Mock data transfer functionality
     _copy_gcs_object = MagicMock()
-    monkeypatch.setattr("functions.uploads._copy_gcs_object", _copy_gcs_object)
+    _copy_gcs_object.return_value = job.metadata_json_patch
+    monkeypatch.setattr(
+        "functions.uploads._copy_gcs_object_and_update_metadata", _copy_gcs_object
+    )
+
+    # Mock metadata merging functionality
+    _merge_metadata = MagicMock()
+    monkeypatch.setattr(TrialMetadata, "patch_trial_metadata", _merge_metadata)
 
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None)
@@ -43,3 +50,5 @@ def test_ingest_upload(db_session, monkeypatch):
     find_by_id.assert_called_once_with(JOB_ID, session=db_session)
     # Check that we copied multiple objects
     _copy_gcs_object.assert_called() and not _copy_gcs_object.assert_called_once()
+    # Check that we tried to merge metadata once
+    _merge_metadata.assert_called_once()
