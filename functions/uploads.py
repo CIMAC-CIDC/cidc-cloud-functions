@@ -1,7 +1,7 @@
 """A pub/sub triggered functions that respond to data upload events"""
 from flask import jsonify
 from google.cloud import storage
-from cidc_api.models import UploadJobs, TrialMetadata
+from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
 from cidc_schemas import prism
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
@@ -43,12 +43,18 @@ def ingest_upload(event: dict, context: BackgroundContext):
         url_mapping[upload_url] = target_url
 
         # Copy the uploaded GCS object to the data bucket
-        metadata_with_urls = _copy_gcs_object_and_update_metadata(
+        metadata_with_urls, artifact_metadata = _copy_gcs_object_and_update_metadata(
             metadata_with_urls,
             GOOGLE_UPLOAD_BUCKET,
             upload_url,
             GOOGLE_DATA_BUCKET,
             target_url,
+        )
+
+        # Save artifact info to the downloadable_files table
+        print(f"Saving metadata for {target_url} to downloadable_files table.")
+        DownloadableFiles.create_from_metadata(
+            trial_id, artifact_metadata, session=session
         )
 
     # Add metadata for this upload to the database
@@ -66,7 +72,7 @@ def _copy_gcs_object_and_update_metadata(
     source_object: str,
     target_bucket: str,
     target_object: str,
-):
+) -> (dict, dict):
     """Copy a GCS object from one bucket to another and add the GCS uri to the provided metadata."""
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -76,15 +82,13 @@ def _copy_gcs_object_and_update_metadata(
     from_object = from_bucket.blob(source_object)
     to_bucket = storage_client.get_bucket(target_bucket)
     to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
-    print(
-        f"Copied gs://{from_bucket.name}/{from_object.name} to gs://{to_bucket.name}/{to_object.name}"
-    )
     print(f"Adding artifact {to_object.name} to metadata.")
-    updated_metadata = prism.merge_artifact(
+    updated_trial_metadata, artifact_metadata = prism.merge_artifact(
         metadata,
         to_object.name,
         to_object.size,
         to_object.time_created,
         to_object.md5_hash,
     )
-    return updated_metadata
+
+    return updated_trial_metadata, artifact_metadata
