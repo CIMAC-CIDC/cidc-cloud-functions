@@ -33,6 +33,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     url_mapping = {}
     metadata_with_urls = job.metadata_json_patch
+    downloadable_files = []
     for upload_url in job.gcs_file_uris:
         # We expected URIs in the upload bucket to have a structure like
         # [trial id]/[patient id]/[sample id]/[aliquot id]/[timestamp]/[local file].
@@ -51,15 +52,22 @@ def ingest_upload(event: dict, context: BackgroundContext):
             target_url,
         )
 
-        # Save artifact info to the downloadable_files table
-        print(f"Saving metadata for {target_url} to downloadable_files table.")
-        DownloadableFiles.create_from_metadata(
-            trial_id, artifact_metadata, session=session
-        )
+        # Hang on to the artifact metadata
+        downloadable_files.append(artifact_metadata)
 
     # Add metadata for this upload to the database
     print("Merging metadata from upload %d into trial %s" % (job.id, trial_id))
     TrialMetadata.patch_trial_metadata(trial_id, metadata_with_urls, session=session)
+
+    # Save downloadable files to the database
+    # NOTE: this needs to happen after TrialMetadata.patch_trial_metadata
+    # in order to avoid violating a foreign-key constraint on the trial_id
+    # in the event that this is the first upload for a trial.
+    for artifact_metadata in downloadable_files:
+        print(f"Saving metadata for {target_url} to downloadable_files table.")
+        DownloadableFiles.create_from_metadata(
+            trial_id, artifact_metadata, session=session
+        )
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
