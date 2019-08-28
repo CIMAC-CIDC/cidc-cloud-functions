@@ -23,6 +23,7 @@ def test_ingest_upload(db_session, monkeypatch):
         gcs_file_uris=FILE_URIS,
         metadata_json_patch={"lead_organization_study_id": "CIMAC-12345"},
         status="completed",
+        assay_type="wes"
     )
 
     # Since the test database isn't yet set up with migrations,

@@ -67,7 +67,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
     for artifact_metadata in downloadable_files:
         print(f"Saving metadata for {target_url} to downloadable_files table.")
         DownloadableFiles.create_from_metadata(
-            trial_id, artifact_metadata, session=session
+            trial_id, job.assay_type, artifact_metadata, session=session
         )
 
     # Google won't actually do anything with this response; it's
