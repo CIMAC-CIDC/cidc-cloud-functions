@@ -45,6 +45,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Copy the uploaded GCS object to the data bucket
         metadata_with_urls, artifact_metadata = _copy_gcs_object_and_update_metadata(
+            job.assay_type,
             metadata_with_urls,
             GOOGLE_UPLOAD_BUCKET,
             upload_url,
@@ -75,6 +76,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
 
 def _copy_gcs_object_and_update_metadata(
+    assay_type: str,
     metadata: dict,
     source_bucket: str,
     source_object: str,
