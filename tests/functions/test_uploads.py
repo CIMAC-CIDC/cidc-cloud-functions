@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+from collections import namedtuple
 
 from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
 
@@ -21,9 +22,25 @@ def test_ingest_upload(db_session, monkeypatch):
         id=JOB_ID,
         uploader_email="test@email.com",
         gcs_file_uris=FILE_URIS,
-        metadata_json_patch={"lead_organization_study_id": "CIMAC-12345"},
+        metadata_json_patch={
+            "lead_organization_study_id": "CIMAC-12345",
+            "assays": {
+                "wes": [
+                    {
+                        "records": [
+                            {
+                                "cimac_participant_id": "CIMAC-mock-pa-id",
+                                "cimac_sample_id": "CIMAC-mock-sa-id",
+                                "cimac_aliquot_id": "CIMAC-mock-al-id",
+                                "files": {"fastq_1": {}},
+                            }
+                        ]
+                    }
+                ]
+            },
+        },
         status="completed",
-        assay_type="wes"
+        assay_type="wes",
     )
 
     # Since the test database isn't yet set up with migrations,
@@ -34,11 +51,16 @@ def test_ingest_upload(db_session, monkeypatch):
     monkeypatch.setattr(UploadJobs, "find_by_id", find_by_id)
 
     # Mock data transfer functionality
-    _copy_gcs_object = MagicMock()
-    _copy_gcs_object.return_value = job.metadata_json_patch, ARTIFACT
-    monkeypatch.setattr(
-        "functions.uploads._copy_gcs_object_and_update_metadata", _copy_gcs_object
+    _gcs_copy = MagicMock()
+    _gcs_copy.return_value = namedtuple(
+        "gsc_object_mock", ["name", "size", "time_created", "md5_hash"]
+    )(
+        "CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1",
+        100,
+        "01/01/2001",
+        "gsc_url_mock_hash",
     )
+    monkeypatch.setattr("functions.uploads._gcs_copy", _gcs_copy)
 
     # Mock metadata merging functionality
     _save_file = MagicMock()
@@ -54,7 +76,7 @@ def test_ingest_upload(db_session, monkeypatch):
     assert response.json[URI2 + TS_AND_PATH] == URI2
     find_by_id.assert_called_once_with(JOB_ID, session=db_session)
     # Check that we copied multiple objects
-    _copy_gcs_object.assert_called() and not _copy_gcs_object.assert_called_once()
+    _gcs_copy.assert_called() and not _gcs_copy.assert_called_once()
     # Check that we tried to save multiple files
     _save_file.assert_called() and not _save_file.assert_called_once()
     # Check that we tried to merge metadata once
