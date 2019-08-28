@@ -95,6 +95,7 @@ def _copy_gcs_object_and_update_metadata(
     print(f"Adding artifact {to_object.name} to metadata.")
     updated_trial_metadata, artifact_metadata = prism.merge_artifact(
         metadata,
+        assay_type,
         to_object.name,
         to_object.size,
         to_object.time_created,
