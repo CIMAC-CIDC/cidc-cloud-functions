@@ -13,8 +13,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
     When a successful upload event is published, move the data associated
     with the upload job into the download bucket and merge the upload metadata
     into the appropriate clinical trial JSON.
-
-    TODO: actually implement the above functionality.
     """
     job_id = int(extract_pubsub_data(event))
     session = get_db_session()

@@ -7,18 +7,17 @@ from sqlalchemy.orm import sessionmaker
 
 from .settings import SQLALCHEMY_DATABASE_URI
 
-_session = None
+_engine = None
 
 
 def get_db_session():
     """Get the current SQLAlchemy session"""
-    global _session
+    global _engine
 
-    if not _session:
-        engine = create_engine(SQLALCHEMY_DATABASE_URI)
-        _session = sessionmaker(bind=engine)()
+    if not _engine:
+        _engine = create_engine(SQLALCHEMY_DATABASE_URI)
 
-    return _session
+    return sessionmaker(bind=_engine)()
 
 
 def extract_pubsub_data(event: dict):
