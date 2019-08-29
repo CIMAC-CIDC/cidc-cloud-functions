@@ -67,7 +67,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
     for artifact_metadata in downloadable_files:
         print(f"Saving metadata for {target_url} to downloadable_files table.")
         DownloadableFiles.create_from_metadata(
-            trial_id, artifact_metadata, session=session
+            trial_id, job.assay_type, artifact_metadata, session=session
         )
 
     # Google won't actually do anything with this response; it's
@@ -95,6 +95,7 @@ def _copy_gcs_object_and_update_metadata(
     print(f"Adding artifact {to_object.name} to metadata.")
     updated_trial_metadata, artifact_metadata = prism.merge_artifact(
         metadata,
+        assay_type,
         to_object.name,
         to_object.size,
         to_object.time_created,
