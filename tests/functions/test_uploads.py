@@ -5,7 +5,6 @@ import datetime
 from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
 
 from tests.util import make_pubsub_event, with_app_context
-from functions import util
 from functions.uploads import ingest_upload
 
 
