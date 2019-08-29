@@ -5,11 +5,12 @@ import datetime
 from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
 
 from tests.util import make_pubsub_event, with_app_context
+from functions import util
 from functions.uploads import ingest_upload
 
 
 @with_app_context
-def test_ingest_upload(db_session, monkeypatch):
+def test_ingest_upload(monkeypatch):
     """Test upload data transfer functionality"""
 
     JOB_ID = 1
@@ -75,7 +76,7 @@ def test_ingest_upload(db_session, monkeypatch):
 
     assert response.json[URI1 + TS_AND_PATH] == URI1
     assert response.json[URI2 + TS_AND_PATH] == URI2
-    find_by_id.assert_called_once_with(JOB_ID, session=db_session)
+    find_by_id.assert_called_once()
     # Check that we copied multiple objects
     _gcs_copy.assert_called() and not _gcs_copy.assert_called_once()
     # Check that we tried to save multiple files
