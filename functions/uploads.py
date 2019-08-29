@@ -69,6 +69,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         DownloadableFiles.create_from_metadata(
             trial_id, job.assay_type, artifact_metadata, session=session
         )
+    
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
@@ -108,7 +109,7 @@ def _copy_gcs_object_and_update_metadata(
         assay_type,
         to_object.name,
         to_object.size,
-        to_object.time_created,
+        to_object.time_created.isoformat(),
         to_object.md5_hash,
     )
 

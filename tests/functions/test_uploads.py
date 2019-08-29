@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 from collections import namedtuple
+import datetime
 
 from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
 
@@ -57,7 +58,7 @@ def test_ingest_upload(db_session, monkeypatch):
     )(
         "CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1",
         100,
-        "01/01/2001",
+        datetime.datetime.now(),
         "gsc_url_mock_hash",
     )
     monkeypatch.setattr("functions.uploads._gcs_copy", _gcs_copy)
