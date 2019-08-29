@@ -75,6 +75,21 @@ def ingest_upload(event: dict, context: BackgroundContext):
     return jsonify(url_mapping)
 
 
+def _gcs_copy(
+    source_bucket: str, source_object: str, target_bucket: str, target_object: str
+):
+    """Copy a GCS object from one bucket to another"""
+    print(
+        f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
+    )
+    storage_client = storage.Client()
+    from_bucket = storage_client.get_bucket(source_bucket)
+    from_object = from_bucket.blob(source_object)
+    to_bucket = storage_client.get_bucket(target_bucket)
+    to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
+    return to_object
+
+
 def _copy_gcs_object_and_update_metadata(
     assay_type: str,
     metadata: dict,
@@ -84,21 +99,16 @@ def _copy_gcs_object_and_update_metadata(
     target_object: str,
 ) -> (dict, dict):
     """Copy a GCS object from one bucket to another and add the GCS uri to the provided metadata."""
-    print(
-        f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
-    )
-    storage_client = storage.Client()
-    from_bucket = storage_client.get_bucket(source_bucket)
-    from_object = from_bucket.blob(source_object)
-    to_bucket = storage_client.get_bucket(target_bucket)
-    to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
+
+    to_object = _gcs_copy(source_bucket, source_object, target_bucket, target_object)
+
     print(f"Adding artifact {to_object.name} to metadata.")
     updated_trial_metadata, artifact_metadata = prism.merge_artifact(
         metadata,
         assay_type,
         to_object.name,
         to_object.size,
-        to_object.time_created,
+        to_object.time_created.isoformat(),
         to_object.md5_hash,
     )
 
