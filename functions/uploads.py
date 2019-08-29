@@ -69,7 +69,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
         DownloadableFiles.create_from_metadata(
             trial_id, job.assay_type, artifact_metadata, session=session
         )
-    
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
