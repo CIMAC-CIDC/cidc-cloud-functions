@@ -56,7 +56,7 @@ def test_ingest_upload(db_session, monkeypatch):
     _gcs_copy.return_value = namedtuple(
         "gsc_object_mock", ["name", "size", "time_created", "md5_hash"]
     )(
-        "CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1",
+        "CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         100,
         datetime.datetime.now(),
         "gsc_url_mock_hash",
