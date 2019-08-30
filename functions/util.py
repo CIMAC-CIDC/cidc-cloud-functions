@@ -10,14 +10,22 @@ from .settings import SQLALCHEMY_DATABASE_URI
 _engine = None
 
 
-def get_db_session():
-    """Get the current SQLAlchemy session"""
-    global _engine
+class sqlalchemy_session:
+    """Get a SQLAlchemy session from the connection pool"""
 
-    if not _engine:
-        _engine = create_engine(SQLALCHEMY_DATABASE_URI)
+    def __init__(self):
+        global _engine
 
-    return sessionmaker(bind=_engine)()
+        if not _engine:
+            _engine = create_engine(SQLALCHEMY_DATABASE_URI)
+
+        self.session = sessionmaker(bind=_engine)()
+
+    def __enter__(self):
+        return self.session
+
+    def __exit__(self, type, value, traceback):
+        self.session.close()
 
 
 def extract_pubsub_data(event: dict):
