@@ -1,5 +1,6 @@
 """Helpers for working with Cloud Functions."""
 import base64
+from contextlib import contextmanager
 from typing import NamedTuple
 
 from sqlalchemy import create_engine
@@ -7,18 +8,25 @@ from sqlalchemy.orm import sessionmaker
 
 from .settings import SQLALCHEMY_DATABASE_URI
 
-_session = None
+_engine = None
 
 
-def get_db_session():
-    """Get the current SQLAlchemy session"""
-    global _session
+@contextmanager
+def sqlalchemy_session():
+    """Get a SQLAlchemy session from the connection pool"""
+    global _engine
+    if not _engine:
+        _engine = create_engine(SQLALCHEMY_DATABASE_URI)
+    session = sessionmaker(bind=_engine)()
 
-    if not _session:
-        engine = create_engine(SQLALCHEMY_DATABASE_URI)
-        _session = sessionmaker(bind=engine)()
-
-    return _session
+    try:
+        yield session
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def extract_pubsub_data(event: dict):
