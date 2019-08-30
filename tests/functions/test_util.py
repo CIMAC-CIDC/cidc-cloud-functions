@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from tests.util import make_pubsub_event
 from functions import util
 
@@ -36,12 +38,20 @@ def test_sqlalchemy_session(monkeypatch):
         sessionmaker.assert_called_once_with(bind=engine)
         assert sesh == session
 
+    session.commit.assert_called_once()
+    session.rollback.assert_not_called()
     session.close.assert_called_once()
 
     create_engine.reset_mock()
     sessionmaker.reset_mock()
 
-    # On subsequent invocations, the already-created engine to be used.
-    with util.sqlalchemy_session() as sesh:
+    with pytest.raises(Exception), util.sqlalchemy_session() as sesh:
+        # On subsequent invocations, the already-created engine to be used.
         create_engine.assert_not_called()
         sessionmaker.assert_called_once_with(bind=engine)
+        # Force a failure
+        raise Exception
+
+    session.commit.assert_not_called()
+    session.rollback.assert_called_once()
+    session.close.assert_called_once()
