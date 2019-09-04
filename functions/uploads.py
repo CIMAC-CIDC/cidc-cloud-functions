@@ -32,7 +32,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         metadata_with_urls = job.metadata_json_patch
         downloadable_files = []
         for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids:
-            
+
             url_mapping[upload_url] = target_url
 
             # Copy the uploaded GCS object to the data bucket
@@ -100,10 +100,7 @@ def _copy_gcs_object_and_update_metadata(
 
     print(f"Adding artifact {to_object.name} to metadata.")
     updated_trial_metadata, artifact_metadata = TrialMetadata.merge_gcs_artifact(
-        metadata,
-        assay_type,
-        uuid,
-        to_object
+        metadata, assay_type, uuid, to_object
     )
 
     return updated_trial_metadata, artifact_metadata
