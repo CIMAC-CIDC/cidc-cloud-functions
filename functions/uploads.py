@@ -1,7 +1,7 @@
 """A pub/sub triggered functions that respond to data upload events"""
 from flask import jsonify
 from google.cloud import storage
-from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
+from cidc_api.models import AssayUploads, TrialMetadata, DownloadableFiles
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
@@ -16,22 +16,22 @@ def ingest_upload(event: dict, context: BackgroundContext):
     job_id = int(extract_pubsub_data(event))
 
     with sqlalchemy_session() as session:
-        job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
+        job: AssayUploads = AssayUploads.find_by_id(job_id, session=session)
 
         print("Detected completed upload job for user %s" % job.uploader_email)
 
         trial_id_field = "lead_organization_study_id"
-        if not trial_id_field in job.metadata_json_patch:
+        if not trial_id_field in job.metadata:
             # We should never hit this. This function should only be called on pre-validated metadata.
             raise Exception(
                 "Invalid metadata: cannot find study ID in metadata. Aborting ingestion."
             )
-        trial_id = job.metadata_json_patch[trial_id_field]
+        trial_id = job.metadata[trial_id_field]
 
         url_mapping = {}
-        metadata_with_urls = job.metadata_json_patch
+        metadata_with_urls = job.metadata
         downloadable_files = []
-        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids:
+        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
 
             url_mapping[upload_url] = target_url
 
@@ -100,7 +100,7 @@ def _copy_gcs_object_and_update_metadata(
 
     print(f"Adding artifact {to_object.name} to metadata.")
     updated_trial_metadata, artifact_metadata = TrialMetadata.merge_gcs_artifact(
-        metadata, assay_type, uuid, to_object
+        metadata, assay_type, UUID, to_object
     )
 
     return updated_trial_metadata, artifact_metadata
