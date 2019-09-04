@@ -1,8 +1,7 @@
 """A pub/sub triggered functions that respond to data upload events"""
 from flask import jsonify
 from google.cloud import storage
-from cidc_api.models import UploadJobs, TrialMetadata, DownloadableFiles
-from cidc_schemas import prism
+from cidc_api.models import AssayUploads, TrialMetadata, DownloadableFiles
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
@@ -17,34 +16,30 @@ def ingest_upload(event: dict, context: BackgroundContext):
     job_id = int(extract_pubsub_data(event))
 
     with sqlalchemy_session() as session:
-        job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
+        job: AssayUploads = AssayUploads.find_by_id(job_id, session=session)
 
         print("Detected completed upload job for user %s" % job.uploader_email)
 
         trial_id_field = "lead_organization_study_id"
-        if not trial_id_field in job.metadata_json_patch:
+        if not trial_id_field in job.metadata:
             # We should never hit this. This function should only be called on pre-validated metadata.
             raise Exception(
                 "Invalid metadata: cannot find study ID in metadata. Aborting ingestion."
             )
-        trial_id = job.metadata_json_patch[trial_id_field]
+        trial_id = job.metadata[trial_id_field]
 
         url_mapping = {}
-        metadata_with_urls = job.metadata_json_patch
+        metadata_with_urls = job.metadata
         downloadable_files = []
-        for upload_url in job.gcs_file_uris:
-            # We expected URIs in the upload bucket to have a structure like
-            # [trial id]/[patient id]/[sample id]/[aliquot id]/[timestamp]/[local file].
-            # We strip off the /[timestamp]/[local file] suffix from the upload url,
-            # since we don't care when this was uploaded or where from on the uploader's
-            # computer.
-            target_url = "/".join(upload_url.split("/")[:-2])
+        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
+
             url_mapping[upload_url] = target_url
 
             # Copy the uploaded GCS object to the data bucket
             metadata_with_urls, artifact_metadata = _copy_gcs_object_and_update_metadata(
-                job.assay_type,
                 metadata_with_urls,
+                job.assay_type,
+                uuid,
                 GOOGLE_UPLOAD_BUCKET,
                 upload_url,
                 GOOGLE_DATA_BUCKET,
@@ -91,8 +86,9 @@ def _gcs_copy(
 
 
 def _copy_gcs_object_and_update_metadata(
-    assay_type: str,
     metadata: dict,
+    assay_type: str,
+    UUID: str,
     source_bucket: str,
     source_object: str,
     target_bucket: str,
@@ -103,13 +99,8 @@ def _copy_gcs_object_and_update_metadata(
     to_object = _gcs_copy(source_bucket, source_object, target_bucket, target_object)
 
     print(f"Adding artifact {to_object.name} to metadata.")
-    updated_trial_metadata, artifact_metadata = prism.merge_artifact(
-        metadata,
-        assay_type,
-        to_object.name,
-        to_object.size,
-        to_object.time_created.isoformat(),
-        to_object.md5_hash,
+    updated_trial_metadata, artifact_metadata = TrialMetadata.merge_gcs_artifact(
+        metadata, assay_type, UUID, to_object
     )
 
     return updated_trial_metadata, artifact_metadata
