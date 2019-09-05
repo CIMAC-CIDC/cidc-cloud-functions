@@ -21,15 +21,15 @@ def ingest_upload(event: dict, context: BackgroundContext):
         print("Detected completed upload job for user %s" % job.uploader_email)
 
         trial_id_field = "lead_organization_study_id"
-        if not trial_id_field in job.metadata:
+        if not trial_id_field in job.assay_patch:
             # We should never hit this. This function should only be called on pre-validated metadata.
             raise Exception(
                 "Invalid metadata: cannot find study ID in metadata. Aborting ingestion."
             )
-        trial_id = job.metadata[trial_id_field]
+        trial_id = job.assay_patch[trial_id_field]
 
         url_mapping = {}
-        metadata_with_urls = job.metadata
+        metadata_with_urls = job.assay_patch
         downloadable_files = []
         for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
 

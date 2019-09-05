@@ -27,7 +27,7 @@ def test_ingest_upload(monkeypatch):
         id=JOB_ID,
         uploader_email="test@email.com",
         gcs_file_map=FILE_MAP,
-        metadata={
+        assay_patch={
             "lead_organization_study_id": "CIMAC-12345",
             "assays": {
                 "wes": [
