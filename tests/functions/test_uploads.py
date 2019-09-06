@@ -37,7 +37,10 @@ def test_ingest_upload(monkeypatch):
                                 "cimac_participant_id": "CIMAC-mock-pa-id",
                                 "cimac_sample_id": "CIMAC-mock-sa-id",
                                 "cimac_aliquot_id": "CIMAC-mock-al-id",
-                                "files": {"fastq_1": {}},
+                                "files": {
+                                    "r1": {"upload_placeholder": "uuid1"},
+                                    "r2": {"upload_placeholder": "uuid2"},
+                                    },
                             }
                         ]
                     }
@@ -60,7 +63,7 @@ def test_ingest_upload(monkeypatch):
     _gcs_copy.return_value = namedtuple(
         "gsc_object_mock", ["name", "size", "time_created", "md5_hash"]
     )(
-        "CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1",
+        "CIMAC-12345/CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1",
         100,
         datetime.datetime.now(),
         "gsc_url_mock_hash",
