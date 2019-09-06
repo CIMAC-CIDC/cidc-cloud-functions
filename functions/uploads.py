@@ -47,10 +47,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
             )
 
             # Hang on to the artifact metadata
+            print(f"artifact metadata: {artifact_metadata}")
             downloadable_files.append(artifact_metadata)
 
         # Add metadata for this upload to the database
-        print("Merging metadata from upload %d into trial %s" % (job.id, trial_id))
+        print(
+            "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
+            metadata_with_urls,
+        )
         TrialMetadata.patch_trial_metadata(
             trial_id, metadata_with_urls, session=session
         )
@@ -60,7 +64,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
         for artifact_metadata in downloadable_files:
-            print(f"Saving metadata for {target_url} to downloadable_files table.")
+            print(
+                f"Saving metadata for {target_url} to downloadable_files table: {artifact_metadata}"
+            )
             DownloadableFiles.create_from_metadata(
                 trial_id, job.assay_type, artifact_metadata, session=session
             )
