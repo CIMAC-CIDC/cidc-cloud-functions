@@ -55,12 +55,12 @@ def ingest_upload(event: dict, context: BackgroundContext):
             "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
             metadata_with_urls,
         )
-        TrialMetadata.patch_trial_metadata(
+        TrialMetadata.patch_assays(
             trial_id, metadata_with_urls, session=session
         )
 
         # Save downloadable files to the database
-        # NOTE: this needs to happen after TrialMetadata.patch_trial_metadata
+        # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
         for artifact_metadata in downloadable_files:
