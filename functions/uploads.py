@@ -55,9 +55,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
             metadata_with_urls,
         )
-        TrialMetadata.patch_assays(
-            trial_id, metadata_with_urls, session=session
-        )
+        TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
 
         # Save downloadable files to the database
         # NOTE: this needs to happen after TrialMetadata.patch_assays
