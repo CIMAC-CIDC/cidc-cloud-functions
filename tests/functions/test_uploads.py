@@ -75,7 +75,7 @@ def test_ingest_upload(monkeypatch):
     monkeypatch.setattr(DownloadableFiles, "create_from_metadata", _save_file)
 
     _merge_metadata = MagicMock()
-    monkeypatch.setattr(TrialMetadata, "patch_trial_metadata", _merge_metadata)
+    monkeypatch.setattr(TrialMetadata, "patch_assays", _merge_metadata)
 
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None).json
