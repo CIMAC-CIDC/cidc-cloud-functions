@@ -50,13 +50,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
         trial_id = job.assay_patch.get("lead_organization_study_id")
         if not trial_id:
             # We should never hit this, since metadata should be pre-validated.
-            message = "Invalid assay metadata: missing protocol identifier (trial id)."
-            job.status = AssayUploadStatus.MERGE_FAILED.value
-            job.status_details = message
-            session.commit()
-            raise Exception(
-                "Invalid metadata: cannot find study ID in metadata. Aborting ingestion."
-            )
+            with saved_failure_status(job, session):
+                raise Exception(
+                    "Invalid assay metadata: missing protocol identifier (trial id)."
+                )
 
         url_mapping = {}
         metadata_with_urls = job.assay_patch
@@ -65,14 +62,12 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
             url_mapping[upload_url] = target_url
 
-            # Copy the uploaded GCS object to the data bucket
             with saved_failure_status(job, session):
+                # Copy the uploaded GCS object to the data bucket
                 destination_object = _gcs_copy(
                     GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
                 )
-
-            # Add the artifact info to the metadata patch
-            with saved_failure_status(job, session):
+                # Add the artifact info to the metadata patch
                 metadata_with_urls, artifact_metadata = _add_artifact_to_metadata(
                     metadata_with_urls, job.assay_type, uuid, destination_object
                 )
