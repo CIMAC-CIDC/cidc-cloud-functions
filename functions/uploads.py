@@ -8,6 +8,7 @@ from cidc_api.models import (
     TrialMetadata,
     DownloadableFiles,
     AssayUploadStatus,
+    TRIAL_ID_FIELD,
 )
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
@@ -45,9 +46,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 f"Received ID for job with status {job.status}. Aborting ingestion."
             )
 
-        print("Detected completed upload job for user %s" % job.uploader_email)
+        print(
+            f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
+        )
 
-        trial_id = job.assay_patch.get("lead_organization_study_id")
+        trial_id = job.assay_patch.get(TRIAL_ID_FIELD)
         if not trial_id:
             # We should never hit this, since metadata should be pre-validated.
             with saved_failure_status(job, session):
@@ -95,8 +98,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     trial_id, job.assay_type, artifact_metadata, session=session
                 )
 
-    # Save the upload success
-    job.status = AssayUploadStatus.MERGE_COMPLETED.value
+        # Save the upload success
+        job.status = AssayUploadStatus.MERGE_COMPLETED.value
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
