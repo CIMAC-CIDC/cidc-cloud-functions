@@ -1,10 +1,30 @@
 """A pub/sub triggered functions that respond to data upload events"""
+from contextlib import contextmanager
+
 from flask import jsonify
 from google.cloud import storage
-from cidc_api.models import AssayUploads, TrialMetadata, DownloadableFiles
+from cidc_api.models import (
+    AssayUploads,
+    TrialMetadata,
+    DownloadableFiles,
+    AssayUploadStatus,
+    TRIAL_ID_FIELD,
+)
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
+
+
+@contextmanager
+def saved_failure_status(job: AssayUploads, session):
+    """Save an upload failure to the database before raising an exception."""
+    try:
+        yield
+    except Exception as e:
+        job.status = AssayUploadStatus.MERGE_FAILED.value
+        job.status_details = str(e)
+        session.commit()
+        raise e
 
 
 def ingest_upload(event: dict, context: BackgroundContext):
@@ -17,16 +37,26 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     with sqlalchemy_session() as session:
         job: AssayUploads = AssayUploads.find_by_id(job_id, session=session)
+        if not job:
+            raise Exception(f"No assay upload job with id {job_id} found.")
 
-        print("Detected completed upload job for user %s" % job.uploader_email)
-
-        trial_id_field = "lead_organization_study_id"
-        if not trial_id_field in job.assay_patch:
-            # We should never hit this. This function should only be called on pre-validated metadata.
+        # Ensure this is a completed upload and nothing else
+        if AssayUploadStatus(job.status) != AssayUploadStatus.UPLOAD_COMPLETED:
             raise Exception(
-                "Invalid metadata: cannot find study ID in metadata. Aborting ingestion."
+                f"Received ID for job with status {job.status}. Aborting ingestion."
             )
-        trial_id = job.assay_patch[trial_id_field]
+
+        print(
+            f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
+        )
+
+        trial_id = job.assay_patch.get(TRIAL_ID_FIELD)
+        if not trial_id:
+            # We should never hit this, since metadata should be pre-validated.
+            with saved_failure_status(job, session):
+                raise Exception(
+                    "Invalid assay metadata: missing protocol identifier (trial id)."
+                )
 
         url_mapping = {}
         metadata_with_urls = job.assay_patch
@@ -35,16 +65,15 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
             url_mapping[upload_url] = target_url
 
-            # Copy the uploaded GCS object to the data bucket
-            metadata_with_urls, artifact_metadata = _copy_gcs_object_and_update_metadata(
-                metadata_with_urls,
-                job.assay_type,
-                uuid,
-                GOOGLE_UPLOAD_BUCKET,
-                upload_url,
-                GOOGLE_DATA_BUCKET,
-                target_url,
-            )
+            with saved_failure_status(job, session):
+                # Copy the uploaded GCS object to the data bucket
+                destination_object = _gcs_copy(
+                    GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
+                )
+                # Add the artifact info to the metadata patch
+                metadata_with_urls, artifact_metadata = _add_artifact_to_metadata(
+                    metadata_with_urls, job.assay_type, uuid, destination_object
+                )
 
             # Hang on to the artifact metadata
             print(f"artifact metadata: {artifact_metadata}")
@@ -55,19 +84,23 @@ def ingest_upload(event: dict, context: BackgroundContext):
             "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
             metadata_with_urls,
         )
-        TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
+        with saved_failure_status(job, session):
+            TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
 
         # Save downloadable files to the database
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
         for artifact_metadata in downloadable_files:
-            print(
-                f"Saving metadata for {target_url} to downloadable_files table: {artifact_metadata}"
-            )
-            DownloadableFiles.create_from_metadata(
-                trial_id, job.assay_type, artifact_metadata, session=session
-            )
+            print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
+            with saved_failure_status(job, session):
+                DownloadableFiles.create_from_metadata(
+                    trial_id, job.assay_type, artifact_metadata, session=session
+                )
+
+        # Save the upload success
+        job.status = AssayUploadStatus.MERGE_COMPLETED.value
+        session.commit()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
@@ -89,22 +122,14 @@ def _gcs_copy(
     return to_object
 
 
-def _copy_gcs_object_and_update_metadata(
-    metadata: dict,
-    assay_type: str,
-    UUID: str,
-    source_bucket: str,
-    source_object: str,
-    target_bucket: str,
-    target_object: str,
+def _add_artifact_to_metadata(
+    metadata: dict, assay_type: str, UUID: str, destination_object: storage.Blob
 ) -> (dict, dict):
     """Copy a GCS object from one bucket to another and add the GCS uri to the provided metadata."""
+    print(f"Adding artifact {destination_object.name} to metadata.")
 
-    to_object = _gcs_copy(source_bucket, source_object, target_bucket, target_object)
-
-    print(f"Adding artifact {to_object.name} to metadata.")
     updated_trial_metadata, artifact_metadata = TrialMetadata.merge_gcs_artifact(
-        metadata, assay_type, UUID, to_object
+        metadata, assay_type, UUID, destination_object
     )
 
     return updated_trial_metadata, artifact_metadata

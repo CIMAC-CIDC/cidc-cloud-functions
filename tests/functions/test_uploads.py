@@ -2,25 +2,30 @@ from unittest.mock import MagicMock
 from collections import namedtuple
 import datetime
 
-from cidc_api.models import AssayUploads, TrialMetadata, DownloadableFiles
+import pytest
+
+from cidc_api.models import (
+    AssayUploads,
+    AssayUploadStatus,
+    TrialMetadata,
+    DownloadableFiles,
+)
 
 from tests.util import make_pubsub_event, with_app_context
-from functions.uploads import ingest_upload
+from functions.uploads import ingest_upload, saved_failure_status
+
+JOB_ID = 1
+URI1 = "/path/to/file1"
+URI2 = "/path/to/deeper/file2"
+UPLOAD_DATE_PATH = "/2019-09-04T17:00:28.685967"
+FILE_MAP = {URI1 + UPLOAD_DATE_PATH: "uuid1", URI2 + UPLOAD_DATE_PATH: "uuid2"}
 
 
 @with_app_context
 def test_ingest_upload(monkeypatch):
     """Test upload data transfer functionality"""
 
-    JOB_ID = 1
-    URI1 = "/path/to/file1"
-    URI2 = "/path/to/deeper/file2"
     TS_AND_PATH = "/1234/local_path1.txt"
-    UPLOAD_DATE_PATH = '/2019-09-04T17:00:28.685967'
-    FILE_MAP = {
-        URI1+UPLOAD_DATE_PATH : "uuid1", 
-        URI2+UPLOAD_DATE_PATH : "uuid2"
-    }
     ARTIFACT = {"test-prop": "test-val"}
 
     job = AssayUploads(
@@ -40,14 +45,14 @@ def test_ingest_upload(monkeypatch):
                                 "files": {
                                     "r1": {"upload_placeholder": "uuid1"},
                                     "r2": {"upload_placeholder": "uuid2"},
-                                    },
+                                },
                             }
                         ]
                     }
                 ]
             },
         },
-        status="completed",
+        status=AssayUploadStatus.UPLOAD_COMPLETED.value,
         assay_type="wes",
     )
 
@@ -80,8 +85,8 @@ def test_ingest_upload(monkeypatch):
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None).json
 
-    assert response[URI1+UPLOAD_DATE_PATH] == URI1
-    assert response[URI2+UPLOAD_DATE_PATH] == URI2
+    assert response[URI1 + UPLOAD_DATE_PATH] == URI1
+    assert response[URI2 + UPLOAD_DATE_PATH] == URI2
     find_by_id.assert_called_once()
     # Check that we copied multiple objects
     _gcs_copy.assert_called() and not _gcs_copy.assert_called_once()
@@ -89,3 +94,31 @@ def test_ingest_upload(monkeypatch):
     _save_file.assert_called() and not _save_file.assert_called_once()
     # Check that we tried to merge metadata once
     _merge_metadata.assert_called_once()
+
+    # Check that the job status was updated to reflect a successful upload
+    assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
+
+
+def test_saved_failure_status():
+    """Check that the saved_failure_status context manager does what it claims."""
+    session = MagicMock()
+    job = MagicMock()
+    job.status = None
+    job.status_details = None
+
+    # Non-raising code
+    with saved_failure_status(job, session):
+        print("not failing!")
+
+    assert job.status is None and job.status_details is None
+    session.commit.assert_not_called()
+
+    # Raising code
+    message = "uh oh!"
+    with pytest.raises(Exception, match=message):
+        with saved_failure_status(job, session):
+            raise Exception(message)
+
+    assert job.status == AssayUploadStatus.MERGE_FAILED.value
+    assert job.status_details == message
+    session.commit.assert_called_once()
