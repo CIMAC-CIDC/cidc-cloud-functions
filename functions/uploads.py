@@ -100,6 +100,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Save the upload success
         job.status = AssayUploadStatus.MERGE_COMPLETED.value
+        session.commit()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
