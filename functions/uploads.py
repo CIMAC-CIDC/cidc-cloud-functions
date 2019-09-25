@@ -1,5 +1,6 @@
 """A pub/sub triggered functions that respond to data upload events"""
 from contextlib import contextmanager
+from typing import Optional, Tuple
 
 from flask import jsonify
 from google.cloud import storage
@@ -104,12 +105,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
-            xlsx_metadata = _get_blob_metadata(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
-            DownloadableFiles.create_from_metadata(
-                trial_id,
-                assay_type=job.assay_type,
-                file_metadata={"data_format": "Assay Metadata", **xlsx_metadata},
-                session=session,
+            _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+            full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
+            print(f"Saving {full_uri} as a downloadable_file.")
+            DownloadableFiles.create_from_blob(
+                trial_id, job.assay_type, "Assay Metadata", xlsx_blob, session=session
             )
 
         # Save the upload success
@@ -128,17 +128,25 @@ def _gcs_copy(
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
     )
-    storage_client = storage.Client()
-    from_bucket = storage_client.get_bucket(source_bucket)
-    from_object = from_bucket.blob(source_object)
-    to_bucket = storage_client.get_bucket(target_bucket)
+    from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
+    to_bucket, _ = _get_bucket_and_blob(target_bucket, None)
     to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
     return to_object
 
 
+def _get_bucket_and_blob(
+    bucket_name: str, object_name: Optional[str]
+) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
+    """Get GCS metadata for a storage bucket and blob"""
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(object_name) if object_name else None
+    return bucket, blob
+
+
 def _add_artifact_to_metadata(
     metadata: dict, assay_type: str, UUID: str, destination_object: storage.Blob
-) -> (dict, dict):
+) -> Tuple[dict, dict]:
     """Copy a GCS object from one bucket to another and add the GCS uri to the provided metadata."""
     print(f"Adding artifact {destination_object.name} to metadata.")
 
@@ -147,20 +155,3 @@ def _add_artifact_to_metadata(
     )
 
     return updated_trial_metadata, artifact_metadata
-
-
-def _get_blob_metadata(bucket_name: str, object_name: str):
-    """Extract artificat metadata about a GCS blob."""
-    full_uri = f"gs://{bucket_name}/{object_name}"
-    print(f"Saving {full_uri} as a downloadable_file.")
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(object_name)
-
-    return {
-        "object_url": blob.name,
-        "file_name": blob.name,
-        "file_size_bytes": blob.size,
-        "md5_hash": blob.md5_hash,
-        "uploaded_timestamp": blob.time_created,
-    }
