@@ -5,7 +5,7 @@ from .settings import GOOGLE_DATA_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
 
-def make_patient_sample_csvs(event: dict, context: BackgroundContext):
+def generate_csvs(event: dict, context: BackgroundContext):
     """
     Given an event containing a trial metadata record ID, generate the 
     patient / sample CSVs for that metadata, save them to GCS, and create

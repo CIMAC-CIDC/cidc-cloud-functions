@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock
 
-from functions.patient_sample_update import make_patient_sample_csvs
+from functions.patient_sample_update import generate_csvs
 
 from tests.util import make_pubsub_event
 
 
-def test_make_patient_sample_csvs(monkeypatch):
-    """Ensure make_patient_sample_csvs follows the expected control flow."""
+def test_generate_csvs(monkeypatch):
+    """Ensure generate_csvs follows the expected control flow."""
 
     generate_patient_csv = MagicMock()
     generate_patient_csv.return_value = "patient csv"
@@ -34,7 +34,7 @@ def test_make_patient_sample_csvs(monkeypatch):
     trial_id = "test-trial"
 
     # Call the function
-    make_patient_sample_csvs(make_pubsub_event(trial_id), None)
+    generate_csvs(make_pubsub_event(trial_id), None)
 
     # Check control flow
     assert generate_patient_csv.call_args[0][0] == trial_id
