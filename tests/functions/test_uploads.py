@@ -77,13 +77,17 @@ def test_ingest_upload(monkeypatch):
     )
     monkeypatch.setattr("functions.uploads._gcs_copy", _gcs_copy)
 
-    _get_blob_metadata = MagicMock()
-    _get_blob_metadata.return_value = {}
-    monkeypatch.setattr("functions.uploads._get_blob_metadata", _get_blob_metadata)
+    _get_bucket_and_blob = MagicMock()
+    xlsx_blob = MagicMock()
+    _get_bucket_and_blob.return_value = None, xlsx_blob
+    monkeypatch.setattr("functions.uploads._get_bucket_and_blob", _get_bucket_and_blob)
 
     # Mock metadata merging functionality
     _save_file = MagicMock()
     monkeypatch.setattr(DownloadableFiles, "create_from_metadata", _save_file)
+
+    _save_blob_file = MagicMock()
+    monkeypatch.setattr(DownloadableFiles, "create_from_blob", _save_blob_file)
 
     _merge_metadata = MagicMock()
     monkeypatch.setattr(TrialMetadata, "patch_assays", _merge_metadata)
@@ -100,8 +104,15 @@ def test_ingest_upload(monkeypatch):
     _save_file.assert_called() and not _save_file.assert_called_once()
     # Check that we tried to merge metadata once
     _merge_metadata.assert_called_once()
-    # Check that we got metadata for the xlsx file
-    _get_blob_metadata.assert_called_with(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+    # Check that we got the xlsx blob metadata from GCS
+    _get_bucket_and_blob.assert_called_with(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+    # Check that we created a downloadable file for the xlsx file blob
+    assert _save_blob_file.call_args[:-1][0] == (
+        "CIMAC-12345",
+        "wes",
+        "Assay Metadata",
+        xlsx_blob,
+    )
 
     # Check that the job status was updated to reflect a successful upload
     assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
