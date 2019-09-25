@@ -140,7 +140,7 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(object_name) if object_name else None
+    blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
 
 
