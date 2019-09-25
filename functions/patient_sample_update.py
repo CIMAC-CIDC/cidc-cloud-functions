@@ -26,10 +26,10 @@ def generate_csvs(event: dict, context: BackgroundContext):
 
         # Save to DownloadableFiles
         DownloadableFiles.create_from_blob(
-            trial_id, "Participants Info", "csv", patient_blob, session=session
+            trial_id, "participants info", "csv", patient_blob, session=session
         )
         DownloadableFiles.create_from_blob(
-            trial_id, "Samples Info", "csv", sample_blob, session=session
+            trial_id, "samples info", "csv", sample_blob, session=session
         )
 
 
