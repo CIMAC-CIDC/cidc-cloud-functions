@@ -13,6 +13,7 @@ from cidc_api.models import (
 
 from tests.util import make_pubsub_event, with_app_context
 from functions.uploads import ingest_upload, saved_failure_status
+from functions.settings import GOOGLE_DATA_BUCKET
 
 JOB_ID = 1
 URI1 = "/path/to/file1"
@@ -31,6 +32,7 @@ def test_ingest_upload(monkeypatch):
     job = AssayUploads(
         id=JOB_ID,
         uploader_email="test@email.com",
+        gcs_xlsx_uri="test.xlsx",
         gcs_file_map=FILE_MAP,
         assay_patch={
             "lead_organization_study_id": "CIMAC-12345",
@@ -75,6 +77,10 @@ def test_ingest_upload(monkeypatch):
     )
     monkeypatch.setattr("functions.uploads._gcs_copy", _gcs_copy)
 
+    _get_blob_metadata = MagicMock()
+    _get_blob_metadata.return_value = {}
+    monkeypatch.setattr("functions.uploads._get_blob_metadata", _get_blob_metadata)
+
     # Mock metadata merging functionality
     _save_file = MagicMock()
     monkeypatch.setattr(DownloadableFiles, "create_from_metadata", _save_file)
@@ -94,6 +100,8 @@ def test_ingest_upload(monkeypatch):
     _save_file.assert_called() and not _save_file.assert_called_once()
     # Check that we tried to merge metadata once
     _merge_metadata.assert_called_once()
+    # Check that we got metadata for the xlsx file
+    _get_blob_metadata.assert_called_with(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
 
     # Check that the job status was updated to reflect a successful upload
     assert job.status == AssayUploadStatus.MERGE_COMPLETED.value

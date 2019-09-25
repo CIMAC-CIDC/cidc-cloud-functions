@@ -95,8 +95,22 @@ def ingest_upload(event: dict, context: BackgroundContext):
             print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
             with saved_failure_status(job, session):
                 DownloadableFiles.create_from_metadata(
-                    trial_id, job.assay_type, artifact_metadata, session=session
+                    trial_id,
+                    job.assay_type,
+                    artifact_metadata,
+                    session=session,
+                    commit=False,
                 )
+
+        # Additionally, make the metadata xlsx a downloadable file
+        with saved_failure_status(job, session):
+            xlsx_metadata = _get_blob_metadata(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+            DownloadableFiles.create_from_metadata(
+                trial_id,
+                assay_type=job.assay_type,
+                file_metadata={"data_format": "Assay Metadata", **xlsx_metadata},
+                session=session,
+            )
 
         # Save the upload success
         job.status = AssayUploadStatus.MERGE_COMPLETED.value
@@ -133,3 +147,20 @@ def _add_artifact_to_metadata(
     )
 
     return updated_trial_metadata, artifact_metadata
+
+
+def _get_blob_metadata(bucket_name: str, object_name: str):
+    """Extract artificat metadata about a GCS blob."""
+    full_uri = f"gs://{bucket_name}/{object_name}"
+    print(f"Saving {full_uri} as a downloadable_file.")
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(object_name)
+
+    return {
+        "object_url": blob.name,
+        "file_name": blob.name,
+        "file_size_bytes": blob.size,
+        "md5_hash": blob.md5_hash,
+        "uploaded_timestamp": blob.time_created,
+    }
