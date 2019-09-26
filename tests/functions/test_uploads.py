@@ -35,15 +35,13 @@ def test_ingest_upload(monkeypatch):
         gcs_xlsx_uri="test.xlsx",
         gcs_file_map=FILE_MAP,
         assay_patch={
-            "lead_organization_study_id": "CIMAC-12345",
+            "protocol_id": "CIMAC-12345",
             "assays": {
                 "wes": [
                     {
                         "records": [
                             {
-                                "cimac_participant_id": "CIMAC-mock-pa-id",
-                                "cimac_sample_id": "CIMAC-mock-sa-id",
-                                "cimac_aliquot_id": "CIMAC-mock-al-id",
+                                "cimac_id": "CIMAC-mock-sa-id",
                                 "files": {
                                     "r1": {"upload_placeholder": "uuid1"},
                                     "r2": {"upload_placeholder": "uuid2"},
