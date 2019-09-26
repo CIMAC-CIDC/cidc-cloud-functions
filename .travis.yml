@@ -56,6 +56,10 @@ deploy:
     script: bash deploy/pubsub.sh send_email emails .env.staging.yaml
     on:
       branch: master
+  - provider: script
+    script: bash deploy/pubsub.sh generate_csvs patient_sample_update .env.staging.yaml
+    on:
+      branch: master
   # Production functions
   - provider: script
     script: bash deploy/pubsub.sh ingest_upload uploads .env.prod.yaml
@@ -63,5 +67,9 @@ deploy:
       branch: production
   - provider: script
     script: bash deploy/pubsub.sh send_email emails .env.prod.yaml
+    on:
+      branch: production
+  - provider: script
+    script: bash deploy/pubsub.sh generate_csvs patient_sample_update .env.prod.yaml
     on:
       branch: production
