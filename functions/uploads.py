@@ -9,7 +9,7 @@ from cidc_api.models import (
     TrialMetadata,
     DownloadableFiles,
     AssayUploadStatus,
-    TRIAL_ID_FIELD,
+    prism,
 )
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
@@ -51,7 +51,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
         )
 
-        trial_id = job.assay_patch.get(TRIAL_ID_FIELD)
+        trial_id = job.assay_patch.get(prism.PROTOCOL_ID_FIELD_NAME)
         if not trial_id:
             # We should never hit this, since metadata should be pre-validated.
             with saved_failure_status(job, session):
