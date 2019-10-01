@@ -137,7 +137,7 @@ def _send_new_auth0_logs_to_stackdriver(logs: List[dict]):
 
     for log in logs:
         ts = datetime.strptime(log["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        logger.log_struct(log, timestamp=ts)
+        logger.log_struct({**log, "__source": "auth0"}, timestamp=ts)
 
 
 def _save_new_auth0_logs(logs: List[dict]) -> str:
