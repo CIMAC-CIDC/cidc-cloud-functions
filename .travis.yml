@@ -51,7 +51,6 @@ script:
   - black --check functions main.py --target-version=py36
 
 deploy:
-  # Staging functions
   - provider: script
     script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.staging.yaml
     on:
