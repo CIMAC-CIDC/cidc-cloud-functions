@@ -3,5 +3,6 @@ flask-sqlalchemy==2.4.0
 google-cloud-storage==1.16.1
 psycopg2-binary==2.8.3
 sendgrid==6.0.5
+requests==2.22.0
 # The cidc_api_modules package
 cidc-api-modules~=0.5.6
