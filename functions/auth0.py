@@ -80,19 +80,40 @@ def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
     logs_endpoint = f"{MANAGEMENT_API}logs"
     headers = {"Authorization": f"Bearer {token}"}
     # see: https://auth0.com/docs/logs#get-logs-by-checkpoint
-    params = {"from": log_id} if log_id else {}
+    params = {"take": 100}
 
-    results = requests.get(logs_endpoint, headers=headers, params=params)
-    gs_path = f"gs://{GOOGLE_LOGS_BUCKET}/auth0"
+    logs = []
 
-    if results.status_code != 200:
-        raise Exception(
-            f"Failed to fetch auth0 logs, Reason: {results.reason},"
-            f" Status Code: {results.status_code}, Body:\n"
-            f"{results.json()}"
-        )
+    # Auth0 only returns at most 100 logs at a time, so we keep request
+    # more logs until we stop receiving logs.
+    while True:
+        if log_id:
+            params["from"] = log_id
 
-    return results.json()
+        print(f"Fetching next logs batch: {params}")
+        results = requests.get(logs_endpoint, headers=headers, params=params)
+        gs_path = f"gs://{GOOGLE_LOGS_BUCKET}/auth0"
+
+        if results.status_code != 200:
+            raise Exception(
+                f"Failed to fetch auth0 logs, Reason: {results.reason},"
+                f" Status Code: {results.status_code}, Body:\n"
+                f"{results.json()}"
+            )
+
+        new_logs = results.json()
+        num_new_logs = len(new_logs)
+        if num_new_logs == 0:
+            print(f"Found no additional logs. Terminating request loop.")
+            break
+
+        print(f"Collected {num_new_logs} additional logs.")
+        logs.extend(new_logs)
+        log_id = new_logs[-1]["_id"]
+
+    print(f"Collected {len(logs)} logs in total.")
+
+    return logs
 
 
 def _save_new_auth0_logs(logs: List[dict]) -> str:
@@ -105,7 +126,7 @@ def _save_new_auth0_logs(logs: List[dict]) -> str:
     logs_blob.upload_from_string(json.dumps(logs))
 
     # Save the id of the most recent log in the collection.
-    log_id = logs[0]["_id"]
+    log_id = logs[-1]["_id"]
     id_blob = log_bucket.blob(LAST_LOG_ID)
     id_blob.upload_from_string(log_id)
 
