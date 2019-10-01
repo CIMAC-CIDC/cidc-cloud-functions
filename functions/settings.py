@@ -18,10 +18,18 @@ if not GCP_PROJECT:
 TESTING = os.environ.get("TESTING")
 secrets = get_secret_manager(TESTING)
 
+# GCP config
 SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
+GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
 
+# Auth0 config
+AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = os.environ.get("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = secrets.get("AUTH0_CLIENT_SECRET")
+
+# SendGrid config
 SENDGRID_API_KEY = secrets.get("SENDGRID_API_KEY")
 
 # Check for configuration that must be defined if we're running in GCP
