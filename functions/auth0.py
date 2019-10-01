@@ -79,6 +79,7 @@ def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
     """Get all new access logs since `log_id`"""
     logs_endpoint = f"{MANAGEMENT_API}logs"
     headers = {"Authorization": f"Bearer {token}"}
+    # see: https://auth0.com/docs/logs#get-logs-by-checkpoint
     params = {"from": log_id} if log_id else {}
 
     results = requests.get(logs_endpoint, headers=headers, params=params)
