@@ -23,12 +23,15 @@ def test_store_auth0_logs(monkeypatch):
     logs = []
     get_logs = mock_function_ret_val("_get_new_auth0_logs", logs)
 
+    send_logs = mock_function_ret_val("_send_new_auth0_logs_to_stackdriver", None)
+
     save_logs = mock_function_ret_val("_save_new_auth0_logs", None)
 
     auth0.store_auth0_logs()
     get_token.assert_called_once()
     get_log_id.assert_called_once()
     get_logs.assert_called_once_with(token, log_id)
+    send_logs.assert_not_called()
     save_logs.assert_not_called()
 
     # Populated log results
@@ -36,6 +39,7 @@ def test_store_auth0_logs(monkeypatch):
     get_logs = mock_function_ret_val("_get_new_auth0_logs", logs)
 
     auth0.store_auth0_logs()
+    send_logs.assert_called_once_with(logs)
     save_logs.assert_called_once_with(logs)
 
 

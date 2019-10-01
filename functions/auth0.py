@@ -3,7 +3,7 @@ import requests
 from datetime import datetime
 from typing import List, Optional
 
-from google.cloud import storage
+from google.cloud import storage, logging
 from google.api_core.exceptions import NotFound
 
 from .settings import (
@@ -37,8 +37,12 @@ def store_auth0_logs(*args):
         print(f"No new logs found (since log with id {log_id})")
         return
 
+    # Send new access logs to StackDriver
+    print(f"Sending new Auth0 logs to StackDriver")
+    _send_new_auth0_logs_to_stackdriver(logs)
+
     # Save new access logs
-    print(f"Saving new Auth0 logs")
+    print(f"Saving new Auth0 logs to GCS")
     file_name = _save_new_auth0_logs(logs)
 
     print(f"New Auth0 logs saved to {file_name}")
@@ -54,6 +58,17 @@ def _get_auth0_access_token() -> str:
     }
     res = requests.post(f"{AUTH0_DOMAIN}/oauth/token", json=payload)
     return res.json()["access_token"]
+
+
+__stackdriver_logger = None
+
+
+def _get_stackdriver_logger():
+    global __stackdriver_logger
+    if __stackdriver_logger is None:
+        client = logging.Client()
+        __stackdriver_logger = client.logger("auth0")
+    return __stackdriver_logger
 
 
 __log_bucket = None
@@ -116,8 +131,16 @@ def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
     return logs
 
 
+def _send_new_auth0_logs_to_stackdriver(logs: List[dict]):
+    """Log each new log to stackdriver for easy inspection"""
+    logger = _get_stackdriver_logger()
+
+    for log in logs:
+        logger.log_struct(log, timestamp=log["date"])
+
+
 def _save_new_auth0_logs(logs: List[dict]) -> str:
-    """Save a list of access log objects from Auth0"""
+    """Save a list of access log objects from Auth0 to GCS"""
     log_bucket = _get_log_bucket()
 
     # Save new logs to a blob in GCS.
