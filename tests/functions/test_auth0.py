@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import MagicMock
 
 from functions import auth0
@@ -37,3 +38,10 @@ def test_store_auth0_logs(monkeypatch):
     auth0.store_auth0_logs()
     save_logs.assert_called_once_with(logs)
 
+
+def test_get_logfile_name():
+    """Check that generated filenames have the expected structure"""
+    dt = datetime.now()
+
+    fname = auth0._get_logfile_name(dt)
+    assert [dt.year, dt.month, dt.day] == [int(s) for s in fname.split("/")[:3]]

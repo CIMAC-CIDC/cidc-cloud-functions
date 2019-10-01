@@ -99,14 +99,20 @@ def _save_new_auth0_logs(logs: List[dict]) -> str:
     """Save a list of access log objects from Auth0"""
     log_bucket = _get_log_bucket()
 
-    # Save new logs to a file whose name is the current date / time.
-    logs_blob_name = f"{datetime.now()}.json"
+    # Save new logs to a blob in GCS.
+    logs_blob_name = f"{_get_logfile_name()}.json"
     logs_blob = log_bucket.blob(f"auth0/{logs_blob_name}")
     logs_blob.upload_from_string(json.dumps(logs))
 
-    # Save the id of the most recent log in the collection
+    # Save the id of the most recent log in the collection.
     log_id = logs[0]["_id"]
     id_blob = log_bucket.blob(LAST_LOG_ID)
     id_blob.upload_from_string(log_id)
 
-    return f"{logs_blob.bucket.name}/{logs_blob.name}"
+    return f"gs://{logs_blob.bucket.name}/{logs_blob.name}"
+
+
+def _get_logfile_name(dt: str = None):
+    """Generate file name with structure [year]/[month]/[day]/[timestamp].json"""
+    dt = str(dt or datetime.now())
+    return dt.replace(" ", "/").replace("-", "/")
