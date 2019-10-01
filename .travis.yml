@@ -15,6 +15,11 @@ env:
     - GOOGLE_APPLICATION_CREDENTIALS=$HOME/credentials.json
     - GCLOUD_PROJECT_ID_STAGING=cidc-dfci-staging
     - GCLOUD_PROJECT_ID_PROD=cidc-dfci
+  matrix:
+    - FUNCTION=ingest_upload TOPIC=uploads
+    - FUNCTION=send_email TOPIC=emails
+    - FUNCTION=generate_csvs TOPIC=patient_sample_update
+    - FUNCTION=store_auth0_logs TOPIC=daily_cron
 before_install:
   # Install and configure the gcloud SDK. Values for these environment
   # variables must be set in the Travis CI console for this to work:
@@ -48,18 +53,10 @@ script:
 
 deploy:
   - provider: script
-    script: bash deploy/pubsub.sh ingest_upload uploads .env.staging.yaml & \
-      bash deploy/pubsub.sh send_email emails .env.staging.yaml & \
-      bash deploy/pubsub.sh generate_csvs patient_sample_update .env.staging.yaml & \
-      bash deploy/pubsub.sh store_auth0_logs daily_cron .env.staging.yaml & \
-      wait
+    script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.staging.yaml
     on:
       branch: master
   - provider: script
-    script: bash deploy/pubsub.sh ingest_upload uploads .env.prod.yaml & \
-      bash deploy/pubsub.sh send_email emails .env.prod.yaml & \
-      bash deploy/pubsub.sh generate_csvs patient_sample_update .env.prod.yaml & \
-      bash deploy/pubsub.sh store_auth0_logs daily_cron .env.prod.yaml & \
-      wait
+    script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.prod.yaml
     on:
       branch: production
