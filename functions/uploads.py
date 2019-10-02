@@ -56,7 +56,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             # We should never hit this, since metadata should be pre-validated.
             with saved_failure_status(job, session):
                 raise Exception(
-                    "Invalid assay metadata: missing protocol identifier (trial id)."
+                    f"Invalid assay metadata: missing protocol identifier ({prism.PROTOCOL_ID_FIELD_NAME})."
                 )
 
         url_mapping = {}

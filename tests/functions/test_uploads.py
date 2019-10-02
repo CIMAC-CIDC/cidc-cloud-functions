@@ -9,6 +9,7 @@ from cidc_api.models import (
     AssayUploadStatus,
     TrialMetadata,
     DownloadableFiles,
+    prism
 )
 
 from tests.util import make_pubsub_event, with_app_context
@@ -35,7 +36,7 @@ def test_ingest_upload(monkeypatch):
         gcs_xlsx_uri="test.xlsx",
         gcs_file_map=FILE_MAP,
         assay_patch={
-            "protocol_id": "CIMAC-12345",
+            prism.PROTOCOL_ID_FIELD_NAME: "CIMAC-12345",
             "assays": {
                 "wes": [
                     {
