@@ -1,5 +1,5 @@
 from google.cloud import storage
-from cidc_api.models import DownloadableFiles, TrialMetadata
+from cidc_api.models import DownloadableFiles, TrialMetadata, ExtraDataTypes
 
 from .settings import GOOGLE_DATA_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
@@ -26,10 +26,18 @@ def generate_csvs(event: dict, context: BackgroundContext):
 
         # Save to DownloadableFiles
         DownloadableFiles.create_from_blob(
-            trial_id, "participants info", "csv", patient_blob, session=session
+            trial_id,
+            ExtraDataTypes.PARTICIPANTS_INFO.value,
+            "csv",
+            patient_blob,
+            session=session,
         )
         DownloadableFiles.create_from_blob(
-            trial_id, "samples info", "csv", sample_blob, session=session
+            trial_id,
+            ExtraDataTypes.SAMPLES_INFO.value,
+            "csv",
+            sample_blob,
+            session=session,
         )
 
 
