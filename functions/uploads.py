@@ -72,13 +72,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
                 )
                 # Add the artifact info to the metadata patch
-                metadata_with_urls, artifact_metadata = _add_artifact_to_metadata(
+                print(f"Adding artifact {destination_object.name} to metadata.")
+                metadata_with_urls, artifact_metadata, additional_metadata = TrialMetadata.merge_gcs_artifact(
                     metadata_with_urls, job.assay_type, uuid, destination_object
                 )
 
             # Hang on to the artifact metadata
             print(f"artifact metadata: {artifact_metadata}")
-            downloadable_files.append(artifact_metadata)
+            downloadable_files.append((artifact_metadata, additional_metadata))
 
         # Add metadata for this upload to the database
         print(
@@ -92,13 +93,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        for artifact_metadata in downloadable_files:
+        for artifact_metadata, additional_metadata in downloadable_files:
             print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
             with saved_failure_status(job, session):
                 DownloadableFiles.create_from_metadata(
                     trial_id,
                     job.assay_type,
                     artifact_metadata,
+                    additional_metadata=additional_metadata,
                     session=session,
                     commit=False,
                 )
@@ -142,16 +144,3 @@ def _get_bucket_and_blob(
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
-
-
-def _add_artifact_to_metadata(
-    metadata: dict, assay_type: str, UUID: str, destination_object: storage.Blob
-) -> Tuple[dict, dict]:
-    """Copy a GCS object from one bucket to another and add the GCS uri to the provided metadata."""
-    print(f"Adding artifact {destination_object.name} to metadata.")
-
-    updated_trial_metadata, artifact_metadata = TrialMetadata.merge_gcs_artifact(
-        metadata, assay_type, UUID, destination_object
-    )
-
-    return updated_trial_metadata, artifact_metadata

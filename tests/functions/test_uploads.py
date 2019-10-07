@@ -9,7 +9,7 @@ from cidc_api.models import (
     AssayUploadStatus,
     TrialMetadata,
     DownloadableFiles,
-    prism
+    prism,
 )
 
 from tests.util import make_pubsub_event, with_app_context
