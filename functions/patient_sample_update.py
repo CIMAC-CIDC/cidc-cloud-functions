@@ -1,5 +1,6 @@
 from google.cloud import storage
 from cidc_api.models import DownloadableFiles, TrialMetadata, ExtraDataTypes
+from os import environ
 
 from .settings import GOOGLE_DATA_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
@@ -43,6 +44,13 @@ def generate_csvs(event: dict, context: BackgroundContext):
 
 def _upload_to_data_bucket(name: str, csv: str):
     """Upload a CSV to blob called `name` in the CIDC data bucket."""
+    if environ.get('FLASK_ENV') == 'development':
+        fname = name.rsplit("/",1)[-1]
+        print(f"writing {fname}")
+        with open(fname, 'w') as f:
+            f.write(csv)
+        return
+
     client = storage.Client()
     bucket = client.get_bucket(GOOGLE_DATA_BUCKET)
     blob = bucket.blob(name)
