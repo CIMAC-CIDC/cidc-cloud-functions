@@ -6,7 +6,8 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-@app.route('/projects/cidc-dfci-staging/topics/patient_sample_update', methods = ['POST'])
+
+@app.route("/projects/cidc-dfci-staging/topics/patient_sample_update", methods=["POST"])
 def gen_csvs():
     print(f"Got {request}")
     data = request.form
