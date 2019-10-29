@@ -128,13 +128,18 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
 _pseudo_blob = namedtuple("_pseudo_blob", ["name", "size", "md5_hash", "time_created"])
 
+
 def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
     """Copy a GCS object from one bucket to another"""
     if environ.get("FLASK_ENV") == "development":
-        print(f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}")
-        return _pseudo_blob(f"{target_bucket}/{target_object}", 0, "_pseudo_md5_hash", datetime.now())
+        print(
+            f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
+        )
+        return _pseudo_blob(
+            f"{target_bucket}/{target_object}", 0, "_pseudo_md5_hash", datetime.now()
+        )
 
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -151,7 +156,12 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if environ.get("FLASK_ENV") == "development":
-        return bucket_name, _pseudo_blob(f"{bucket_name}/{object_name}", 0, "_pseudo_md5_hash", datetime.now())
+        return (
+            bucket_name,
+            _pseudo_blob(
+                f"{bucket_name}/{object_name}", 0, "_pseudo_md5_hash", datetime.now()
+            ),
+        )
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
