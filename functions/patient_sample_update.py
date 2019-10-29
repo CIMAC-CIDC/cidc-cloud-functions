@@ -1,6 +1,8 @@
 from google.cloud import storage
 from cidc_api.models import DownloadableFiles, TrialMetadata, ExtraDataTypes
 from os import environ
+from collections import namedtuple
+from datetime import datetime
 
 from .settings import GOOGLE_DATA_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
@@ -41,6 +43,8 @@ def generate_csvs(event: dict, context: BackgroundContext):
             session=session,
         )
 
+_pseudo_blob = namedtuple("_pseudo_blob", ["name", "size", "md5_hash", "time_created"])
+
 
 def _upload_to_data_bucket(name: str, csv: str):
     """Upload a CSV to blob called `name` in the CIDC data bucket."""
@@ -49,7 +53,7 @@ def _upload_to_data_bucket(name: str, csv: str):
         print(f"writing {fname}")
         with open(fname, "w") as f:
             f.write(csv)
-        return
+        return _pseudo_blob(f"./{fname}", 0, "_pseudo_md5_hash", datetime.now())
 
     client = storage.Client()
     bucket = client.get_bucket(GOOGLE_DATA_BUCKET)
