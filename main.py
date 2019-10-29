@@ -15,6 +15,7 @@ def gen_csvs():
     generate_csvs(data, {})
     return "200 ok"
 
+
 @app.route("/projects/cidc-dfci-staging/topics/uploads", methods=["POST"])
 def upload():
     print(f"ingest_upload got {request}")
@@ -22,6 +23,7 @@ def upload():
     print(f"with {data}")
     ingest_upload(data, {})
     return "200 ok"
+
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=3001)
