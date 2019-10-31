@@ -133,6 +133,15 @@ def _gcs_copy(
     from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
     to_bucket, _ = _get_bucket_and_blob(target_bucket, None)
     to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
+
+    # We want to maintain the actual upload time of this object, which is the moment
+    # it was originally created in the upload bucket, not the moment it was moved
+    # to the data bucket.
+    # NOTE: this uses implementation details not exposed in the public api of `storage.Blob`.
+    # As such, this may break if we decide to update the google-cloud-storage package.
+    fmted_time = from_object.time_created.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    to_object._properties["timeCreated"] = fmted_time
+
     return to_object
 
 
