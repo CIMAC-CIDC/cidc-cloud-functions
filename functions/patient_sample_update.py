@@ -50,7 +50,7 @@ _pseudo_blob = namedtuple("_pseudo_blob", ["name", "size", "md5_hash", "time_cre
 def _upload_to_data_bucket(name: str, csv: str):
     """Upload a CSV to blob called `name` in the CIDC data bucket."""
     if environ.get("FLASK_ENV") == "development":
-        fname = name.rsplit("/", 1)[-1]
+        fname = name.replace("/", "_")
         print(f"writing {fname}")
         with open(fname, "w") as f:
             f.write(csv)
