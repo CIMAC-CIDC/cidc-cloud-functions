@@ -2,7 +2,7 @@
 
 from functions import ingest_upload, send_email, generate_csvs, store_auth0_logs
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
@@ -13,7 +13,7 @@ def gen_csvs():
     data = request.form
     print(f"with {data}")
     generate_csvs(data, {})
-    return "200 ok"
+    return jsonify(success=True)
 
 
 @app.route("/projects/cidc-dfci-staging/topics/uploads", methods=["POST"])
@@ -22,7 +22,7 @@ def upload():
     data = request.form
     print(f"with {data}")
     ingest_upload(data, {})
-    return "200 ok"
+    return jsonify(success=True)
 
 
 if __name__ == "__main__":
