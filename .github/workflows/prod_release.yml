@@ -2,7 +2,7 @@ name: Create Prod release PR
 
 on:
   schedule:
-  - cron: "6 9,15 * * 1-5" #it's 8:06am and 2:06pm EDT (hopefully)
+  - cron: "6 11,18 * * 1-5" #it's 7:06am and 2:06pm EDT
 
 jobs:
   build:
