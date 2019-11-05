@@ -131,18 +131,38 @@ def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
     return logs
 
 
+# Auth0 logging event codes
+# see: https://auth0.com/docs/logs#log-data-event-listing
+AUTH0_CODES_TO_USER_STR = {
+    "seccft": "[access token]",  # client credentials grant success
+    "f": "[no user info]",  # failed login
+    "fsa": "[no user info]",  # failed silent auth
+    "slo": "[no user info]",  # successful log out
+}
+
+
 def _send_new_auth0_logs_to_stackdriver(logs: List[dict]):
     """Log each new log to stackdriver for easy inspection"""
     logger = _get_stackdriver_logger()
 
     for log in logs:
         ts = datetime.strptime(log["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+        event_type = log["type"]
+        user_agent = log["user_agent"]
+        user_name = log.get("user_name")
+
+        # Depending on the event type, auth0 won't provide user
+        # profile information, so we handle that here.
+        if not user_name:
+            user_name = AUTH0_CODES_TO_USER_STR.get(event_type, "[none]")
+
         extra_fields = {
             "__source": "auth0",
             "message": (
-                f"(EVENT={log['type']})\t"
-                f"(USER={log.get('user_name') or '[none]'})\t"
-                f"(USER_AGENT={log['user_agent']})"
+                f"(EVENT={event_type})\t"
+                f"(USER={user_name})\t"
+                f"(USER_AGENT={user_agent})"
             ),
         }
         logger.log_struct({**log, **extra_fields}, timestamp=ts)
