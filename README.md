@@ -25,6 +25,12 @@ To install dependencies:
 pip install -r requirements.dev.txt
 ```
 
+To install and configure pre-commit hooks>
+
+```bash
+pre-commit install
+```
+
 ### Testing
 
 GCP doesn't yet provide a Cloud Functions local emulator for Python, so there isn't a way to run these function as part of a local instance of the system. As such, writing/running tests for functions based on the [Cloud Functions docs](https://cloud.google.com/functions/docs/) is our best bet for experimenting with the functions locally. To run the tests:
