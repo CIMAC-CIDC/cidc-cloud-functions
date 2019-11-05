@@ -22,7 +22,13 @@ Google Cloud Functions for carrying out event-driven tasks in the CIDC.
 To install dependencies:
 
 ```bash
-pip install -r requirements.txt -r requirements.dev.txt
+pip install -r requirements.dev.txt
+```
+
+To install and configure pre-commit hooks>
+
+```bash
+pre-commit install
 ```
 
 ### Testing

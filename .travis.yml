@@ -42,7 +42,7 @@ before_install:
   - echo "$GCLOUD_SERVICE_ACCOUNT_JSON" | base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
   - gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 install:
-  - pip install -r requirements.txt -r requirements.dev.txt
+  - pip install -r requirements.dev.txt
 before_script:
   - psql -c "create user cidcdev with password '1234'"
   - psql -c "create database cidctest"
