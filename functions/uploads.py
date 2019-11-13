@@ -115,7 +115,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             )
 
         # Save the upload success and trigger email alert
-        job.ingestion_success(session)
+        job.ingestion_success(session=session, send_email=True)
         session.commit()
 
     # Google won't actually do anything with this response; it's
