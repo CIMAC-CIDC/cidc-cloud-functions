@@ -117,8 +117,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 trial_id, job.assay_type, "Assay Metadata", xlsx_blob, session=session
             )
 
-        # Save the upload success
-        job.status = AssayUploadStatus.MERGE_COMPLETED.value
+        # Save the upload success and trigger email alert
+        job.ingestion_success(session=session, send_email=True)
         session.commit()
 
     # Google won't actually do anything with this response; it's
