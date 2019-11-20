@@ -23,20 +23,26 @@ UPLOAD_DATE_PATH = "/2019-09-04T17:00:28.685967"
 FILE_MAP = {URI1 + UPLOAD_DATE_PATH: "uuid1", URI2 + UPLOAD_DATE_PATH: "uuid2"}
 
 
+def email_was_sent(stdout: str) -> bool:
+    return "Would send email with subject '[UPLOAD SUCCESS](dev)" in stdout
+
+
 @with_app_context
-def test_ingest_upload(monkeypatch):
+def test_ingest_upload(capsys, monkeypatch):
     """Test upload data transfer functionality"""
 
     TS_AND_PATH = "/1234/local_path1.txt"
     ARTIFACT = {"test-prop": "test-val"}
+    TRIAL_ID = "CIMAC-12345"
 
     job = AssayUploads(
         id=JOB_ID,
         uploader_email="test@email.com",
+        trial_id=TRIAL_ID,
         gcs_xlsx_uri="test.xlsx",
         gcs_file_map=FILE_MAP,
         assay_patch={
-            prism.PROTOCOL_ID_FIELD_NAME: "CIMAC-12345",
+            prism.PROTOCOL_ID_FIELD_NAME: TRIAL_ID,
             "assays": {
                 "wes": [
                     {
@@ -115,9 +121,10 @@ def test_ingest_upload(monkeypatch):
 
     # Check that the job status was updated to reflect a successful upload
     assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
+    assert email_was_sent(capsys.readouterr()[0])
 
 
-def test_saved_failure_status():
+def test_saved_failure_status(capsys):
     """Check that the saved_failure_status context manager does what it claims."""
     session = MagicMock()
     job = MagicMock()
@@ -140,3 +147,5 @@ def test_saved_failure_status():
     assert job.status == AssayUploadStatus.MERGE_FAILED.value
     assert job.status_details == message
     session.commit.assert_called_once()
+
+    assert not email_was_sent(capsys.readouterr()[0])
