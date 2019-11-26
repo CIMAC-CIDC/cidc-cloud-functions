@@ -12,7 +12,7 @@ from .settings import GOOGLE_DATA_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
 
-def visualization_preprocessing(event: dict, context: BackgroundContext):
+def vis_preprocessing(event: dict, context: BackgroundContext):
     with sqlalchemy_session() as session:
         file_id = extract_pubsub_data(event)
         file_record: DownloadableFiles = DownloadableFiles.find_by_id(
@@ -28,6 +28,7 @@ def visualization_preprocessing(event: dict, context: BackgroundContext):
         for transform_name, transform in get_transforms().items():
             vis_json = transform(file_blob, file_record.data_format)
             if vis_json:
+                # Add the vis config to the file_record
                 setattr(file_record, transform_name, vis_json)
 
         # Save the derivative data additions to the database.

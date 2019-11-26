@@ -19,7 +19,8 @@ env:
     - FUNCTION=ingest_upload TOPIC=uploads
     - FUNCTION=send_email TOPIC=emails
     - FUNCTION=generate_csvs TOPIC=patient_sample_update
-    - FUNCTION=store_auth0_logs TOPIC=daily_cron
+    - FUNCTION=store_auth0_logs TOPIC=daily_cron,
+    - FUNCTION=vis_preprocessing TOPIC=artifact_upload
 before_install:
   # Install and configure the gcloud SDK. Values for these environment
   # variables must be set in the Travis CI console for this to work:
