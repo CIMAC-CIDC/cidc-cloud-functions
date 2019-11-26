@@ -1,15 +1,20 @@
+import os
 from unittest.mock import MagicMock
 
 import pytest
+import pandas as pd
 
 import functions.visualizations
 from functions.visualizations import (
     vis_preprocessing,
     DownloadableFiles,
     _ClustergrammerTransform,
+    _npx_to_dataframe,
 )
 
 from tests.util import make_pubsub_event
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 
 def test_vis_preprocessing(monkeypatch):
@@ -48,5 +53,12 @@ def test_vis_preprocessing(monkeypatch):
     assert npx_record.clustergrammer == cg_json
 
 
-def test_clustergrammer_npx_transform():
-    """TODO"""
+def test_npx_to_dataframe():
+    """Extract data from a fake NPX file"""
+    with open(os.path.join(DATA_DIR, "fake_npx.xlsx"), "rb") as fake_npx:
+        npx_df = _npx_to_dataframe(fake_npx)
+
+    expected_df = pd.DataFrame(
+        {"CTTTTPPS1.01": [1, -1], "CTTTTPPS2.01": [-1, 1]}, index=["Assay1", "Assay2"]
+    )
+    assert expected_df.equals(npx_df)
