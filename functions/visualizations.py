@@ -86,15 +86,14 @@ def _npx_to_dataframe(fname, sheet_name="NPX Data"):
         raise ValueError(f"Couldn't locate expected worksheet '{sheet_name}'.")
     ws = wb[sheet_name]
 
-    # Panel labels
-    mat = [[y.value for y in x[:-2]] for x in ws[3:6]]
-    labels = (
-        pd.DataFrame(mat[1:], columns=mat[0]).set_index("Panel").T.set_index("Assay")
-    )
+    extract_values = lambda xlsx_row: [cell.value for cell in xlsx_row]
 
-    # Raw data (starts on row 8 of the spreadsheet)
+    # Assay labels (row 5 of the spreadsheet)
+    assay_labels = extract_values(ws[4][1:-2])
+
+    # Raw data (row 8 of the spreadsheet onwards)
     rows = []
-    num_cols = labels.shape[0] + 1
+    num_cols = len(assay_labels) + 1
     for row in ws.iter_rows(min_row=8):
         sample_id = row[0].value
         # If we hit a blank line, there's no more data to read.
@@ -102,10 +101,11 @@ def _npx_to_dataframe(fname, sheet_name="NPX Data"):
             break
         # Only include rows pertaining to CIMAC ids
         if re.match(prism.cimac_id_regex, sample_id):
-            rows.append([x.value for x in row[0:num_cols]])
+            new_row = extract_values(row[0:num_cols])
+            rows.append(new_row)
     raw = pd.DataFrame(rows).set_index(0)
     raw.index.name = "cimac_id"
-    raw.columns = labels.index
+    raw.columns = assay_labels
 
     # Drop columns that don't have raw data
     raw.drop(columns=["Plate ID", "QC Warning"], inplace=True)
