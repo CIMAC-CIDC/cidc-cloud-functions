@@ -25,7 +25,7 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         file_blob = _get_file_from_gcs(GOOGLE_DATA_BUCKET, file_record.object_url)
 
         # Apply the transformations and get derivative data for visualization.
-        for transform_name, transform in get_transforms().items():
+        for transform_name, transform in _get_transforms().items():
             vis_json = transform(file_blob, file_record.data_format)
             if vis_json:
                 # Add the vis config to the file_record
@@ -44,16 +44,16 @@ def _get_file_from_gcs(bucket_name: str, object_name: str) -> BytesIO:
     return BytesIO(bytes(file_str))
 
 
-def get_transforms() -> dict:
+def _get_transforms() -> dict:
     """ 
     Get a list of functions taking an open file and
     that file's `data_format` as arguments, returning
     a JSON blob that the frontend will use for visualization.
     """
-    return {"clustergrammer": ClustergrammerTransform()}
+    return {"clustergrammer": _ClustergrammerTransform()}
 
 
-class ClustergrammerTransform:
+class _ClustergrammerTransform:
     def __call__(self, data_file, data_format) -> Optional[dict]:
         """Prepare the data file for visualization in clustergrammer"""
         fmt = data_format.lower()
@@ -64,7 +64,7 @@ class ClustergrammerTransform:
     def npx(self, data_file) -> dict:
         """Prepare an NPX file for visualization in clustergrammer"""
         # Load the NPX data into a dataframe.
-        npx_df = npx_to_dataframe(data_file)
+        npx_df = _npx_to_dataframe(data_file)
 
         # TODO: find a better way to handle missing values
         npx_df.fillna(0, inplace=True)
@@ -78,7 +78,7 @@ class ClustergrammerTransform:
     # TODO: other file types
 
 
-def npx_to_dataframe(fname, sheet_name="NPX Data"):
+def _npx_to_dataframe(fname, sheet_name="NPX Data"):
     """Load raw data from an NPX file into a pandas dataframe."""
 
     wb = load_workbook(fname)
