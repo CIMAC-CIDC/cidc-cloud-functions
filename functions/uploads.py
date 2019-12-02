@@ -128,6 +128,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Trigger post-processing on uploaded data files
         for file_id in downloadable_file_ids:
+            print(f"Publishing file id {file_id} to 'artifact_upload' topic")
             publish_artifact_upload(file_id)
 
     # Google won't actually do anything with this response; it's
