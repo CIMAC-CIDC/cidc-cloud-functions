@@ -3,7 +3,7 @@ from io import BytesIO
 from typing import Optional
 
 import pandas as pd
-from clustergrammer import Network
+from clustergrammer import Network as CGNetwork
 from openpyxl import load_workbook
 from google.cloud import storage
 from cidc_api.models import DownloadableFiles, prism
@@ -70,7 +70,7 @@ class _ClustergrammerTransform:
         npx_df.fillna(0, inplace=True)
 
         # Produce a clustergrammer JSON blob for this dataframe.
-        net = Network()
+        net = CGNetwork()
         net.load_df(npx_df)
         net.cluster()
         return net.export_net_json()
@@ -100,7 +100,7 @@ def _npx_to_dataframe(fname, sheet_name="NPX Data"):
         if not sample_id:
             break
         # Only include rows pertaining to CIMAC ids
-        if re.match(prism.cimac_id_regex, sample_id):
+        if prism.cimac_id_regex.match(sample_id):
             new_row = extract_values(row[0:num_cols])
             rows.append(new_row)
     raw = pd.DataFrame(rows).set_index(0)
