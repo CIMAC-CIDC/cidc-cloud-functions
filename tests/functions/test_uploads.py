@@ -26,7 +26,7 @@ FILE_MAP = {URI1 + UPLOAD_DATE_PATH: "uuid1", URI2 + UPLOAD_DATE_PATH: "uuid2"}
 
 
 def email_was_sent(stdout: str) -> bool:
-    return "Would send email with subject '[UPLOAD SUCCESS](dev)" in stdout
+    return "Would send email with subject '[UPLOAD SUCCESS]" in stdout
 
 
 @with_app_context
