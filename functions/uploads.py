@@ -14,6 +14,7 @@ from cidc_api.models import (
     AssayUploadStatus,
     prism,
 )
+from cidc_api.gcloud_client import publish_artifact_upload
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
@@ -96,10 +97,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
+        downloadable_file_ids = []
         for artifact_metadata, additional_metadata in downloadable_files:
             print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
             with saved_failure_status(job, session):
-                DownloadableFiles.create_from_metadata(
+                df = DownloadableFiles.create_from_metadata(
                     trial_id,
                     job.assay_type,
                     artifact_metadata,
@@ -107,6 +109,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     session=session,
                     commit=False,
                 )
+                downloadable_file_ids.append(df.id)
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
@@ -122,6 +125,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Save the upload success and trigger email alert if transaction succeeds
         job.ingestion_success(session=session, send_email=True, commit=True)
+
+        # Trigger post-processing on uploaded data files
+        for file_id in downloadable_file_ids:
+            publish_artifact_upload(file_id)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
