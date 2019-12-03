@@ -12,9 +12,11 @@ from cidc_api.models import (
     prism,
 )
 
-from tests.util import make_pubsub_event, with_app_context
+from functions import uploads
 from functions.uploads import ingest_upload, saved_failure_status
 from functions.settings import GOOGLE_DATA_BUCKET
+
+from tests.util import make_pubsub_event, with_app_context
 
 JOB_ID = 1
 URI1 = "/path/to/file1"
@@ -24,7 +26,7 @@ FILE_MAP = {URI1 + UPLOAD_DATE_PATH: "uuid1", URI2 + UPLOAD_DATE_PATH: "uuid2"}
 
 
 def email_was_sent(stdout: str) -> bool:
-    return "Would send email with subject '[UPLOAD SUCCESS](dev)" in stdout
+    return "Would send email with subject '[UPLOAD SUCCESS]" in stdout
 
 
 @with_app_context
@@ -97,6 +99,9 @@ def test_ingest_upload(capsys, monkeypatch):
     _merge_metadata = MagicMock()
     monkeypatch.setattr(TrialMetadata, "patch_assays", _merge_metadata)
 
+    publish_artifact_upload = MagicMock()
+    monkeypatch.setattr(uploads, "publish_artifact_upload", publish_artifact_upload)
+
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None).json
 
@@ -122,6 +127,7 @@ def test_ingest_upload(capsys, monkeypatch):
     # Check that the job status was updated to reflect a successful upload
     assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
     assert email_was_sent(capsys.readouterr()[0])
+    publish_artifact_upload.assert_called()
 
 
 def test_saved_failure_status(capsys):
