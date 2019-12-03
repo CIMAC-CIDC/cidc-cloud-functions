@@ -73,7 +73,7 @@ class _ClustergrammerTransform:
         net = CGNetwork()
         net.load_df(npx_df)
         net.cluster()
-        return net.export_net_json()
+        return net.viz
 
     # TODO: other file types
 

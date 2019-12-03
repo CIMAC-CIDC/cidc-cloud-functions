@@ -15,6 +15,7 @@ from functions.visualizations import (
 from tests.util import make_pubsub_event
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+NPX_PATH = os.path.join(DATA_DIR, "fake_npx.xlsx")
 
 
 def test_vis_preprocessing(monkeypatch):
@@ -53,9 +54,17 @@ def test_vis_preprocessing(monkeypatch):
     assert npx_record.clustergrammer == cg_json
 
 
+def test_clustergrammer_transform():
+    """Smoke test for the clustergrammer transform"""
+    cg = _ClustergrammerTransform()
+
+    with open(NPX_PATH, "rb") as fake_npx:
+        assert isinstance(cg.npx(fake_npx), dict)
+
+
 def test_npx_to_dataframe():
     """Extract data from a fake NPX file"""
-    with open(os.path.join(DATA_DIR, "fake_npx.xlsx"), "rb") as fake_npx:
+    with open(NPX_PATH, "rb") as fake_npx:
         npx_df = _npx_to_dataframe(fake_npx)
 
     expected_df = pd.DataFrame(
