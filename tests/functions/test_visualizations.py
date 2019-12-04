@@ -18,7 +18,22 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 NPX_PATH = os.path.join(DATA_DIR, "fake_npx.xlsx")
 
 
-def test_vis_preprocessing(monkeypatch):
+@pytest.fixture
+def metadata_df():
+    """Fake participants/sample metadata for `fake_npx.xlsx`"""
+    metadata_df = pd.DataFrame.from_dict(
+        {
+            "cimac_id": ["CTTTTPPS1.01", "CTTTTPPS2.01"],
+            "cimac_participant_id": ["CTTTTPP", "CTTTTPP"],
+            "cohort_name": ["Arm_A", "Arm_A"],
+            "collection_event_name": ["Event1", "Event2"],
+        }
+    )
+    metadata_df.set_index("cimac_id", inplace=True)
+    return metadata_df
+
+
+def test_vis_preprocessing(monkeypatch, metadata_df):
     """Test control flow for the vis_preprocessing function"""
     # Test no file found
     monkeypatch.setattr(DownloadableFiles, "find_by_id", lambda *args, **kwargs: None)
@@ -35,11 +50,14 @@ def test_vis_preprocessing(monkeypatch):
 
     # Mock GCS call
     gcs_blob = MagicMock()
-    get_file_from_gcs = MagicMock()
-    get_file_from_gcs.return_value = gcs_blob
-    monkeypatch.setattr(
-        functions.visualizations, "_get_file_from_gcs", get_file_from_gcs
-    )
+    _get_data_file = MagicMock()
+    _get_data_file.return_value = gcs_blob
+    monkeypatch.setattr(functions.visualizations, "_get_data_file", _get_data_file)
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
 
     # Mock Clustgrammer preprocessing
     cg_json = {"foo": "bar"}
@@ -49,17 +67,18 @@ def test_vis_preprocessing(monkeypatch):
 
     vis_preprocessing(make_pubsub_event("1"), {})
     find_by_id.assert_called_once()
-    get_file_from_gcs.assert_called_once()
+    _get_data_file.assert_called_once()
+    _get_metadata_df.assert_called_once()
 
     assert npx_record.clustergrammer == cg_json
 
 
-def test_clustergrammer_transform():
+def test_clustergrammer_transform(metadata_df):
     """Smoke test for the clustergrammer transform"""
     cg = _ClustergrammerTransform()
 
     with open(NPX_PATH, "rb") as fake_npx:
-        assert isinstance(cg.npx(fake_npx), dict)
+        assert isinstance(cg.npx(fake_npx, metadata_df), dict)
 
 
 def test_npx_to_dataframe():
