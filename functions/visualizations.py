@@ -124,26 +124,6 @@ class _ClustergrammerTransform:
         net.cluster()
         return net.viz
 
-    def _npx_add_categories(
-        self,
-        npx_df: pd.DataFrame,
-        participants_df: pd.DataFrame,
-        samples_df: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """
-        Add participant- and sample-level category metadata to an NPX dataframe 
-        in the format that Clustergrammer expects.
-        """
-        # Join the participants and samples dataframes on CIMAC ID
-        clinical_df = pd.merge(
-            participants_df,
-            samples_df,
-            left_on="cimac_participant_id",
-            right_on="participants.cimac_participant_id",
-            how="outer",
-        )
-        clinical_df.set_index("cimac_id", inplace=True)
-
     # TODO: other file types
 
 
