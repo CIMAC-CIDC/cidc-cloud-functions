@@ -1,6 +1,6 @@
 import re
-from io import BytesIO
-from typing import Optional
+from io import BytesIO, StringIO
+from typing import Optional, Union
 
 import pandas as pd
 from clustergrammer import Network as CGNetwork
@@ -22,11 +22,12 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         if not file_record:
             raise Exception(f"No downloadable file with id {file_id} found.")
 
-        file_blob = _get_file_from_gcs(GOOGLE_DATA_BUCKET, file_record.object_url)
+        file_blob = _get_data_file(file_record.object_url)
+        metadata_df = _get_metadata_df(file_record.trial_id)
 
         # Apply the transformations and get derivative data for visualization.
         for transform_name, transform in _get_transforms().items():
-            vis_json = transform(file_blob, file_record.data_format)
+            vis_json = transform(file_blob, file_record.data_format, metadata_df)
             if vis_json:
                 # Add the vis config to the file_record
                 setattr(file_record, transform_name, vis_json)
@@ -35,13 +36,40 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         session.commit()
 
 
-def _get_file_from_gcs(bucket_name: str, object_name: str) -> BytesIO:
+def _get_data_file(
+    object_name: str, as_string: bool = False
+) -> Union[BytesIO, StringIO]:
     """Download data from GCS to a byte stream and return it."""
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
+    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
     blob = bucket.get_blob(object_name)
     file_str = blob.download_as_string()
+    if as_string:
+        return StringIO(file_str)
     return BytesIO(bytes(file_str))
+
+
+def _get_metadata_df(trial_id: str) -> pd.DataFrame:
+    """
+    Build a dataframe containing the participant/sample metadata for this trial,
+    joined on CIMAC ID and indexed on CIMAC ID.
+    """
+    participants_blob = _get_data_file(f"{trial_id}/participants.csv", as_string=True)
+    samples_blob = _get_data_file(f"{trial_id}/samples.csv", as_string=True)
+
+    participants_df = pd.read_csv(participants_blob)
+    samples_df = pd.read_csv(samples_blob)
+
+    metadata_df = pd.merge(
+        participants_df,
+        samples_df,
+        left_on="cimac_participant_id",
+        right_on="participants.cimac_participant_id",
+        how="outer",
+    )
+    metadata_df.set_index("cimac_id", inplace=True)
+
+    return metadata_df
 
 
 def _get_transforms() -> dict:
@@ -54,17 +82,37 @@ def _get_transforms() -> dict:
 
 
 class _ClustergrammerTransform:
-    def __call__(self, data_file, data_format) -> Optional[dict]:
-        """Prepare the data file for visualization in clustergrammer"""
+    def __call__(
+        self, data_file: BytesIO, data_format: str, metadata_df: pd.DataFrame
+    ) -> Optional[dict]:
+        """
+        Prepare the data file for visualization in clustergrammer. 
+        NOTE: `metadata_df` should contain data from the participants and samples CSVs
+        for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
+        """
         fmt = data_format.lower()
         if not hasattr(self, fmt):
             return None
-        return getattr(self, fmt)(data_file)
+        return getattr(self, fmt)(data_file, metadata_df)
 
-    def npx(self, data_file) -> dict:
+    def npx(self, data_file, metadata_df: pd.DataFrame) -> dict:
         """Prepare an NPX file for visualization in clustergrammer"""
         # Load the NPX data into a dataframe.
         npx_df = _npx_to_dataframe(data_file)
+
+        # Add category information to `npx_df`'s column headers in the format
+        # that Clustergrammer expects:
+        #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
+        npx_df_columns_with_categories = metadata_df.loc[npx_df.columns].apply(
+            lambda row: (
+                f"CIMAC Sample ID: {row.name}",
+                f"Participant ID: {row.cimac_participant_id}",
+                f"Cohort: {row.cohort_name}",
+                f"Collection Event: {row.collection_event_name}",
+            ),
+            axis=1,
+        )
+        npx_df.columns = npx_df_columns_with_categories
 
         # TODO: find a better way to handle missing values
         npx_df.fillna(0, inplace=True)
@@ -72,13 +120,14 @@ class _ClustergrammerTransform:
         # Produce a clustergrammer JSON blob for this dataframe.
         net = CGNetwork()
         net.load_df(npx_df)
+        net.normalize()
         net.cluster()
         return net.viz
 
     # TODO: other file types
 
 
-def _npx_to_dataframe(fname, sheet_name="NPX Data"):
+def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
     """Load raw data from an NPX file into a pandas dataframe."""
 
     wb = load_workbook(fname)
