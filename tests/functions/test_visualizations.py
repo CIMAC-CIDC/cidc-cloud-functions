@@ -33,8 +33,8 @@ def metadata_df():
     return metadata_df
 
 
-def test_vis_preprocessing(monkeypatch, metadata_df):
-    """Test control flow for the vis_preprocessing function"""
+def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
+    """Test the NPX-clustergrammer transform."""
     # Test no file found
     monkeypatch.setattr(DownloadableFiles, "find_by_id", lambda *args, **kwargs: None)
     with pytest.raises(Exception, match="No downloadable file"):
@@ -51,7 +51,8 @@ def test_vis_preprocessing(monkeypatch, metadata_df):
     # Mock GCS call
     gcs_blob = MagicMock()
     _get_data_file = MagicMock()
-    _get_data_file.return_value = gcs_blob
+    fake_npx = open(NPX_PATH, "rb")
+    _get_data_file.return_value = fake_npx
     monkeypatch.setattr(functions.visualizations, "_get_data_file", _get_data_file)
 
     # Mock metadata_df
@@ -59,18 +60,33 @@ def test_vis_preprocessing(monkeypatch, metadata_df):
     _get_metadata_df.return_value = metadata_df
     monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
 
-    # Mock Clustgrammer preprocessing
-    cg_json = {"foo": "bar"}
-    cg_npx_transform = MagicMock()
-    cg_npx_transform.return_value = cg_json
-    monkeypatch.setattr(_ClustergrammerTransform, "npx", cg_npx_transform)
-
     vis_preprocessing(make_pubsub_event("1"), {})
     find_by_id.assert_called_once()
     _get_data_file.assert_called_once()
     _get_metadata_df.assert_called_once()
 
-    assert npx_record.clustergrammer == cg_json
+    # Check contents of the clustergrammer output
+    row_names = [row["name"] for row in npx_record.clustergrammer["row_nodes"]]
+    col_names = [col["name"] for col in npx_record.clustergrammer["col_nodes"]]
+    col_cats = [
+        (col["cat-0"], col["cat-1"], col["cat-2"])
+        for col in npx_record.clustergrammer["col_nodes"]
+    ]
+
+    # Based on the contents of fake_npx.xlsx...
+    assert row_names == ["Assay1", "Assay2"]
+    assert col_names == [
+        "CIMAC Sample ID: CTTTTPPS1.01",
+        "CIMAC Sample ID: CTTTTPPS2.01",
+    ]
+
+    # Based on the construction of metadata_df...
+    assert col_cats == [
+        ("Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
+        ("Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
+    ]
+
+    fake_npx.close()
 
 
 def test_clustergrammer_transform(metadata_df):
