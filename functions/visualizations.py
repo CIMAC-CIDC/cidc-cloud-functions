@@ -51,6 +51,8 @@ def __get_blob_bytes(object_name: str) -> bytes:
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
     blob = bucket.get_blob(object_name)
+    if not blob:
+        Exception(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
     return blob.download_as_string()
 
 
