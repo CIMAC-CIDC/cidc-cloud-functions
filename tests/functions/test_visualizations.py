@@ -1,4 +1,5 @@
 import os
+from io import BytesIO, StringIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ from functions.visualizations import (
     DownloadableFiles,
     _ClustergrammerTransform,
     _npx_to_dataframe,
+    _get_data_file,
 )
 
 from tests.util import make_pubsub_event
@@ -106,3 +108,22 @@ def test_npx_to_dataframe():
         {"CTTTTPPS1.01": [1, -1], "CTTTTPPS2.01": [-1, 1]}, index=["Assay1", "Assay2"]
     )
     assert expected_df.equals(npx_df)
+
+
+def test_get_data_file(monkeypatch):
+    """Ensure GCS blob utility works as expected"""
+    blob_str = "foo bar"
+    blob_bytes = blob_str.encode()
+    get_blob_bytes = MagicMock()
+    get_blob_bytes.return_value = blob_bytes
+    monkeypatch.setattr(functions.visualizations, "__get_blob_bytes", get_blob_bytes)
+
+    # as BytesIO
+    stream = _get_data_file("")
+    assert isinstance(stream, BytesIO)
+    assert stream.read() == blob_bytes
+
+    # as StringIO
+    stream = _get_data_file("", as_string=True)
+    assert isinstance(stream, StringIO)
+    assert stream.read() == blob_str
