@@ -1,4 +1,5 @@
 import os
+from io import BytesIO, StringIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ from functions.visualizations import (
     DownloadableFiles,
     _ClustergrammerTransform,
     _npx_to_dataframe,
+    _get_blob_as_stream,
 )
 
 from tests.util import make_pubsub_event
@@ -50,10 +52,12 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Mock GCS call
     gcs_blob = MagicMock()
-    _get_data_file = MagicMock()
+    _get_blob_as_stream = MagicMock()
     fake_npx = open(NPX_PATH, "rb")
-    _get_data_file.return_value = fake_npx
-    monkeypatch.setattr(functions.visualizations, "_get_data_file", _get_data_file)
+    _get_blob_as_stream.return_value = fake_npx
+    monkeypatch.setattr(
+        functions.visualizations, "_get_blob_as_stream", _get_blob_as_stream
+    )
 
     # Mock metadata_df
     _get_metadata_df = MagicMock()
@@ -62,7 +66,7 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     vis_preprocessing(make_pubsub_event("1"), {})
     find_by_id.assert_called_once()
-    _get_data_file.assert_called_once()
+    _get_blob_as_stream.assert_called_once()
     _get_metadata_df.assert_called_once()
 
     # Check contents of the clustergrammer output
@@ -106,3 +110,24 @@ def test_npx_to_dataframe():
         {"CTTTTPPS1.01": [1, -1], "CTTTTPPS2.01": [-1, 1]}, index=["Assay1", "Assay2"]
     )
     assert expected_df.equals(npx_df)
+
+
+def test_get_blob_as_stream(monkeypatch):
+    """Ensure GCS blob utility works as expected"""
+    blob_str = "foo bar"
+    blob_bytes = blob_str.encode()
+    get_blob_bytes = MagicMock()
+    get_blob_bytes.return_value = blob_bytes
+    monkeypatch.setattr(
+        functions.visualizations, "__download_blob_bytes", get_blob_bytes
+    )
+
+    # as BytesIO
+    stream = _get_blob_as_stream("")
+    assert isinstance(stream, BytesIO)
+    assert stream.read() == blob_bytes
+
+    # as StringIO
+    stream = _get_blob_as_stream("", as_string=True)
+    assert isinstance(stream, StringIO)
+    assert stream.read() == blob_str

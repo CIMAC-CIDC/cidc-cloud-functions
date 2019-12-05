@@ -22,7 +22,7 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         if not file_record:
             raise Exception(f"No downloadable file with id {file_id} found.")
 
-        file_blob = _get_data_file(file_record.object_url)
+        file_blob = _get_blob_as_stream(file_record.object_url)
         metadata_df = _get_metadata_df(file_record.trial_id)
 
         # Apply the transformations and get derivative data for visualization.
@@ -36,17 +36,24 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         session.commit()
 
 
-def _get_data_file(
+def _get_blob_as_stream(
     object_name: str, as_string: bool = False
 ) -> Union[BytesIO, StringIO]:
-    """Download data from GCS to a byte stream and return it."""
+    """Download data from GCS as a byte or string stream."""
+    file_bytes = __download_blob_bytes(object_name)
+    if as_string:
+        return StringIO(file_bytes.decode("utf-8"))
+    return BytesIO(file_bytes)
+
+
+def __download_blob_bytes(object_name: str) -> bytes:
+    """Download a blob as bytes from GCS."""
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
     blob = bucket.get_blob(object_name)
-    file_str = blob.download_as_string()
-    if as_string:
-        return StringIO(file_str)
-    return BytesIO(bytes(file_str))
+    if not blob:
+        Exception(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
+    return blob.download_as_string()
 
 
 def _get_metadata_df(trial_id: str) -> pd.DataFrame:
@@ -54,8 +61,10 @@ def _get_metadata_df(trial_id: str) -> pd.DataFrame:
     Build a dataframe containing the participant/sample metadata for this trial,
     joined on CIMAC ID and indexed on CIMAC ID.
     """
-    participants_blob = _get_data_file(f"{trial_id}/participants.csv", as_string=True)
-    samples_blob = _get_data_file(f"{trial_id}/samples.csv", as_string=True)
+    participants_blob = _get_blob_as_stream(
+        f"{trial_id}/participants.csv", as_string=True
+    )
+    samples_blob = _get_blob_as_stream(f"{trial_id}/samples.csv", as_string=True)
 
     participants_df = pd.read_csv(participants_blob)
     samples_df = pd.read_csv(samples_blob)
