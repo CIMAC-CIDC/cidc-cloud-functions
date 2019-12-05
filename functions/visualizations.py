@@ -42,7 +42,7 @@ def _get_data_file(
     """Download data from GCS to a byte or string stream and return it."""
     file_bytes = __get_blob_bytes(object_name)
     if as_string:
-        return StringIO(file_bytes)
+        return StringIO(file_bytes.decode("utf-8"))
     return BytesIO(file_bytes)
 
 
