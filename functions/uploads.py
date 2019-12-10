@@ -97,11 +97,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        downloadable_file_ids = []
         for artifact_metadata, additional_metadata in downloadable_files:
             print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
             with saved_failure_status(job, session):
-                df = DownloadableFiles.create_from_metadata(
+                DownloadableFiles.create_from_metadata(
                     trial_id,
                     job.assay_type,
                     artifact_metadata,
@@ -109,7 +108,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     session=session,
                     commit=False,
                 )
-                downloadable_file_ids.append(df.id)
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
@@ -127,9 +125,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for file_id in downloadable_file_ids:
-            print(f"Publishing file id {file_id} to 'artifact_upload' topic")
-            publish_artifact_upload(file_id)
+        for object_url in url_mapping.values():
+            df = DownloadableFiles.get_by_object_url(object_url, session=session)
+            print(f"Publishing file id {df.id} to 'artifact_upload' topic")
+            publish_artifact_upload(df.id)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
