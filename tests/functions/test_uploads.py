@@ -96,6 +96,9 @@ def test_ingest_upload(capsys, monkeypatch):
     _save_blob_file = MagicMock()
     monkeypatch.setattr(DownloadableFiles, "create_from_blob", _save_blob_file)
 
+    _get_by_object_url = MagicMock()
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", _get_by_object_url)
+
     _merge_metadata = MagicMock()
     monkeypatch.setattr(TrialMetadata, "patch_assays", _merge_metadata)
 
@@ -127,6 +130,7 @@ def test_ingest_upload(capsys, monkeypatch):
     # Check that the job status was updated to reflect a successful upload
     assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
     assert email_was_sent(capsys.readouterr()[0])
+    _get_by_object_url.assert_called()
     publish_artifact_upload.assert_called()
 
 
