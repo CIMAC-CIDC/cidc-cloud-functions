@@ -126,9 +126,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Trigger post-processing on uploaded data files
         for object_url in url_mapping.values():
-            df = DownloadableFiles.get_by_object_url(object_url, session=session)
-            print(f"Publishing file id {df.id} to 'artifact_upload' topic")
-            publish_artifact_upload(df.id)
+            print(f"Publishing file object URL {object_url} to 'artifact_upload' topic")
+            publish_artifact_upload(object_url)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
