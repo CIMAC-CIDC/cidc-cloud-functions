@@ -38,17 +38,19 @@ def metadata_df():
 def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
     """Test the NPX-clustergrammer transform."""
     # Test no file found
-    monkeypatch.setattr(DownloadableFiles, "find_by_id", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        DownloadableFiles, "get_by_object_url", lambda *args, **kwargs: None
+    )
     with pytest.raises(Exception, match="No downloadable file"):
-        vis_preprocessing(make_pubsub_event("1"), {})
+        vis_preprocessing(make_pubsub_event("foo/bar"), {})
 
     # Mock an NPX downloadable file record
     npx_record = MagicMock()
     npx_record.object_url = "foo"
     npx_record.data_format = "NPX"
-    find_by_id = MagicMock()
-    find_by_id.return_value = npx_record
-    monkeypatch.setattr(DownloadableFiles, "find_by_id", find_by_id)
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = npx_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
 
     # Mock GCS call
     gcs_blob = MagicMock()
@@ -65,7 +67,7 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
     monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
 
     vis_preprocessing(make_pubsub_event("1"), {})
-    find_by_id.assert_called_once()
+    get_by_object_url.assert_called_once()
     _get_blob_as_stream.assert_called_once()
     _get_metadata_df.assert_called_once()
 
