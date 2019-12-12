@@ -20,17 +20,27 @@ def _get_sg_client() -> SendGridAPIClient:
 
 
 def send_email(event: dict, context: BackgroundContext):
-    """Send an email using the SendGrid API."""
+    """
+    Send an email using the SendGrid API.
+    Args:
+        event - should consist at least of "to_emails", "subject", and "html_content"
+                but can also include other properties supported by sendgrid json api.
+    """
     email = json.loads(extract_pubsub_data(event))
 
-    # Validate that the email blob has the expected structure
     assert "to_emails" in email
     assert "subject" in email
     assert "html_content" in email
-    assert len(email) == 3  # no extra keys
 
-    message = Mail(from_email=FROM_EMAIL, **email)
-
+    message = dict(
+        Mail(  # converting standard args to what sendgrid is expecting
+            from_email=FROM_EMAIL,
+            to_emails=email.pop("to_emails"),
+            subject=email.pop("subject"),
+            html_content=email.pop("html_content"),
+        ).get(),
+        **email,  # including everything else as it is.
+    )
     print(f"Sending email: {email}")
 
     sg = _get_sg_client()

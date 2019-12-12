@@ -28,7 +28,46 @@ def test_send_email(monkeypatch):
     message = args[0]
     # A SendGrid message's string representation is a JSON blob
     # detailing its configuration.
-    assert str(message) == str(Mail(from_email=emails.FROM_EMAIL, **email))
+    sendgrid_expects = {
+        "from": {"email": "no-reply@cimac-network.org"},
+        "subject": "test subject",
+        "personalizations": [
+            {"to": [{"email": "foo@bar.com"}, {"email": "bar@foo.org"}]}
+        ],
+        "content": [{"type": "text/html", "value": "test content"}],
+    }
+
+    assert message == sendgrid_expects
+
+    event = make_pubsub_event(
+        json.dumps(
+            dict(
+                email,
+                attachments=[
+                    {
+                        "file_content": "att/content",
+                        "file_name": "att/fname",
+                        "file_type": "att/mime",
+                    }
+                ],
+            )
+        )
+    )
+    emails.send_email(event, None)
+    args, _ = sender.send.call_args
+    message = args[0]
+    # A SendGrid message's string representation is a JSON blob
+    # detailing its configuration.
+    assert message == dict(
+        sendgrid_expects,
+        attachments=[
+            {
+                "file_content": "att/content",
+                "file_name": "att/fname",
+                "file_type": "att/mime",
+            }
+        ],
+    )
 
     # Malformed email
     del email["subject"]
