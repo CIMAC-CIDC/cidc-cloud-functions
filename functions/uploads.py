@@ -139,6 +139,16 @@ _pseudo_blob = namedtuple(
 )
 
 
+def _make_pseudo_blob(bucket_name, object_name) -> _pseudo_blob:
+    return _pseudo_blob(
+        f"{bucket_name}/{object_name}",
+        0,
+        "_pseudo_md5",
+        "_pseudo_crc32c",
+        datetime.now(),
+    )
+
+
 def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
@@ -147,13 +157,7 @@ def _gcs_copy(
         print(
             f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
         )
-        return _pseudo_blob(
-            f"{target_bucket}/{target_object}",
-            0,
-            "_pseudo_md5_hash",
-            "_pseudo_crc32c",
-            datetime.now(),
-        )
+        return _make_pseudo_blob(target_bucket, target_object)
 
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -179,12 +183,7 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if environ.get("FLASK_ENV") == "development":
-        return (
-            bucket_name,
-            _pseudo_blob(
-                f"{bucket_name}/{object_name}", 0, "_pseudo_md5_hash", datetime.now()
-            ),
-        )
+        return (bucket_name, _make_pseudo_blob(bucket_name, object_name))
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
