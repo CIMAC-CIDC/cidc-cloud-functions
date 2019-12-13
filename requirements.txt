@@ -11,4 +11,4 @@ clustergrammer==1.13.6
 scikit-learn==0.21.3 # clustergrammer dependency
 
 # The cidc_api_modules package
-cidc-api-modules~=0.12.5
+cidc-api-modules~=0.12.7
