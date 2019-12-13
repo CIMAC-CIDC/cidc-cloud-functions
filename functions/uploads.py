@@ -134,7 +134,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
     return jsonify(url_mapping)
 
 
-_pseudo_blob = namedtuple("_pseudo_blob", ["name", "size", "md5_hash", "time_created"])
+_pseudo_blob = namedtuple(
+    "_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
+)
 
 
 def _gcs_copy(
@@ -146,7 +148,11 @@ def _gcs_copy(
             f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
         )
         return _pseudo_blob(
-            f"{target_bucket}/{target_object}", 0, "_pseudo_md5_hash", datetime.now()
+            f"{target_bucket}/{target_object}",
+            0,
+            "_pseudo_md5_hash",
+            "_pseudo_crc32c",
+            datetime.now(),
         )
 
     print(
