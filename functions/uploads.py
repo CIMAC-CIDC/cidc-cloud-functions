@@ -1,4 +1,5 @@
 """A pub/sub triggered functions that respond to data upload events"""
+from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from os import environ
@@ -63,18 +64,30 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     f"Invalid assay metadata: missing protocol identifier ({prism.PROTOCOL_ID_FIELD_NAME})."
                 )
 
-        url_mapping = {}
-        metadata_with_urls = job.assay_patch
-        downloadable_files = []
-        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
-
-            url_mapping[upload_url] = target_url
-
+        def do_copy(urls):
+            upload_url, target_url = urls
             with saved_failure_status(job, session):
                 # Copy the uploaded GCS object to the data bucket
                 destination_object = _gcs_copy(
                     GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
                 )
+            return destination_object
+
+        uuids = []
+        url_mapping = {}
+        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
+            url_mapping[upload_url] = target_url
+            uuids.append(uuid)
+
+        # Copy GCS blobs in parallel
+        pool = ThreadPool(8)
+        destination_objects = pool.map(do_copy, url_mapping.items())
+        pool.close()
+
+        downloadable_files = []
+        metadata_with_urls = job.assay_patch
+        for destination_object, uuid in zip(destination_objects, uuids):
+            with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
                 print(f"Adding artifact {destination_object.name} to metadata.")
                 metadata_with_urls, artifact_metadata, additional_metadata = TrialMetadata.merge_gcs_artifact(

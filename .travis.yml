@@ -16,11 +16,11 @@ env:
     - GCLOUD_PROJECT_ID_STAGING=cidc-dfci-staging
     - GCLOUD_PROJECT_ID_PROD=cidc-dfci
   matrix:
-    - FUNCTION=ingest_upload TOPIC=uploads
-    - FUNCTION=send_email TOPIC=emails
-    - FUNCTION=generate_csvs TOPIC=patient_sample_update
-    - FUNCTION=store_auth0_logs TOPIC=daily_cron
-    - FUNCTION=vis_preprocessing TOPIC=artifact_upload
+    - FUNCTION=ingest_upload TOPIC=uploads TIMEOUT=600 MEMORY=512
+    - FUNCTION=send_email TOPIC=emails TIMEOUT=60 MEMORY=256
+    - FUNCTION=generate_csvs TOPIC=patient_sample_update TIMEOUT=60 MEMORY=256
+    - FUNCTION=store_auth0_logs TOPIC=daily_cron TIMEOUT=60 MEMORY=256
+    - FUNCTION=vis_preprocessing TOPIC=artifact_upload TIMEOUT=120 MEMORY=512
 before_install:
   # Install and configure the gcloud SDK. Values for these environment
   # variables must be set in the Travis CI console for this to work:
@@ -54,10 +54,10 @@ script:
 
 deploy:
   - provider: script
-    script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.staging.yaml
+    script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.staging.yaml $TIMEOUT $MEMORY
     on:
       branch: master
   - provider: script
-    script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.prod.yaml
+    script: bash deploy/pubsub.sh $FUNCTION $TOPIC .env.prod.yaml $TIMEOUT $MEMORY
     on:
       branch: production
