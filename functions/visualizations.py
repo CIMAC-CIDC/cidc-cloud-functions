@@ -14,13 +14,13 @@ from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
 def vis_preprocessing(event: dict, context: BackgroundContext):
     with sqlalchemy_session() as session:
-        file_id = extract_pubsub_data(event)
-        file_record: DownloadableFiles = DownloadableFiles.find_by_id(
-            file_id, session=session
+        object_url = extract_pubsub_data(event)
+        file_record: DownloadableFiles = DownloadableFiles.get_by_object_url(
+            object_url, session=session
         )
 
         if not file_record:
-            raise Exception(f"No downloadable file with id {file_id} found.")
+            raise Exception(f"No downloadable file with object URL {object_url} found.")
 
         file_blob = _get_blob_as_stream(file_record.object_url)
         metadata_df = _get_metadata_df(file_record.trial_id)

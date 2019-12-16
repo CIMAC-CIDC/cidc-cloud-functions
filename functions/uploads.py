@@ -1,4 +1,5 @@
 """A pub/sub triggered functions that respond to data upload events"""
+from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from os import environ
@@ -63,18 +64,30 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     f"Invalid assay metadata: missing protocol identifier ({prism.PROTOCOL_ID_FIELD_NAME})."
                 )
 
-        url_mapping = {}
-        metadata_with_urls = job.assay_patch
-        downloadable_files = []
-        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
-
-            url_mapping[upload_url] = target_url
-
+        def do_copy(urls):
+            upload_url, target_url = urls
             with saved_failure_status(job, session):
                 # Copy the uploaded GCS object to the data bucket
                 destination_object = _gcs_copy(
                     GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
                 )
+            return destination_object
+
+        uuids = []
+        url_mapping = {}
+        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
+            url_mapping[upload_url] = target_url
+            uuids.append(uuid)
+
+        # Copy GCS blobs in parallel
+        pool = ThreadPool(8)
+        destination_objects = pool.map(do_copy, url_mapping.items())
+        pool.close()
+
+        downloadable_files = []
+        metadata_with_urls = job.assay_patch
+        for destination_object, uuid in zip(destination_objects, uuids):
+            with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
                 print(f"Adding artifact {destination_object.name} to metadata.")
                 metadata_with_urls, artifact_metadata, additional_metadata = TrialMetadata.merge_gcs_artifact(
@@ -97,11 +110,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        downloadable_file_ids = []
         for artifact_metadata, additional_metadata in downloadable_files:
             print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
             with saved_failure_status(job, session):
-                df = DownloadableFiles.create_from_metadata(
+                DownloadableFiles.create_from_metadata(
                     trial_id,
                     job.assay_type,
                     artifact_metadata,
@@ -109,7 +121,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     session=session,
                     commit=False,
                 )
-                downloadable_file_ids.append(df.id)
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
@@ -127,16 +138,28 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for file_id in downloadable_file_ids:
-            print(f"Publishing file id {file_id} to 'artifact_upload' topic")
-            publish_artifact_upload(file_id)
+        for object_url in url_mapping.values():
+            print(f"Publishing file object URL {object_url} to 'artifact_upload' topic")
+            publish_artifact_upload(object_url)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
     return jsonify(url_mapping)
 
 
-_pseudo_blob = namedtuple("_pseudo_blob", ["name", "size", "md5_hash", "time_created"])
+_pseudo_blob = namedtuple(
+    "_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
+)
+
+
+def _make_pseudo_blob(bucket_name, object_name) -> _pseudo_blob:
+    return _pseudo_blob(
+        f"{bucket_name}/{object_name}",
+        0,
+        "_pseudo_md5",
+        "_pseudo_crc32c",
+        datetime.now(),
+    )
 
 
 def _gcs_copy(
@@ -147,9 +170,7 @@ def _gcs_copy(
         print(
             f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
         )
-        return _pseudo_blob(
-            f"{target_bucket}/{target_object}", 0, "_pseudo_md5_hash", datetime.now()
-        )
+        return _make_pseudo_blob(target_bucket, target_object)
 
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -175,12 +196,7 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if environ.get("FLASK_ENV") == "development":
-        return (
-            bucket_name,
-            _pseudo_blob(
-                f"{bucket_name}/{object_name}", 0, "_pseudo_md5_hash", datetime.now()
-            ),
-        )
+        return (bucket_name, _make_pseudo_blob(bucket_name, object_name))
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
