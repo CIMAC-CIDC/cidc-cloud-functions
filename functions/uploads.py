@@ -91,7 +91,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             metadata_with_urls,
         )
         with saved_failure_status(job, session):
-            TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
+            trial = TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
 
         # Save downloadable files to the database
         # NOTE: this needs to happen after TrialMetadata.patch_assays
@@ -122,7 +122,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.assay_patch = metadata_with_urls
 
         # Save the upload success and trigger email alert if transaction succeeds
-        job.ingestion_success(session=session, send_email=True, commit=True)
+        job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
         for object_url in url_mapping.values():
@@ -143,10 +143,10 @@ def _gcs_copy(
     """Copy a GCS object from one bucket to another"""
     if environ.get("FLASK_ENV") == "development":
         print(
-            f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
+            f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
         return _pseudo_blob(
-            f"{target_bucket}/{target_object}", 0, "_pseudo_md5_hash", datetime.now()
+            f"{target_object}", 0, "_pseudo_md5_hash", datetime.now()
         )
 
     print(
@@ -176,7 +176,7 @@ def _get_bucket_and_blob(
         return (
             bucket_name,
             _pseudo_blob(
-                f"{bucket_name}/{object_name}", 0, "_pseudo_md5_hash", datetime.now()
+                f"{object_name}", 0, "_pseudo_md5_hash", datetime.now()
             ),
         )
 
