@@ -16,7 +16,7 @@ env:
     - GCLOUD_PROJECT_ID_STAGING=cidc-dfci-staging
     - GCLOUD_PROJECT_ID_PROD=cidc-dfci
   matrix:
-    - FUNCTION=ingest_upload TOPIC=uploads TIMEOUT=600 MEMORY=512
+    - FUNCTION=ingest_upload TOPIC=uploads TIMEOUT=540 MEMORY=512
     - FUNCTION=send_email TOPIC=emails TIMEOUT=60 MEMORY=256
     - FUNCTION=generate_csvs TOPIC=patient_sample_update TIMEOUT=60 MEMORY=256
     - FUNCTION=store_auth0_logs TOPIC=daily_cron TIMEOUT=60 MEMORY=256
