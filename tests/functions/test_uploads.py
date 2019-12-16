@@ -75,12 +75,13 @@ def test_ingest_upload(capsys, monkeypatch):
     # Mock data transfer functionality
     _gcs_copy = MagicMock()
     _gcs_copy.return_value = namedtuple(
-        "gsc_object_mock", ["name", "size", "time_created", "md5_hash"]
+        "gsc_object_mock", ["name", "size", "time_created", "md5_hash", "crc32c"]
     )(
         "CIMAC-12345/CIMAC-mock-pa-id/CIMAC-mock-sa-id/CIMAC-mock-al-id/wes/fastq_1",
         100,
         datetime.datetime.now(),
         "gsc_url_mock_hash",
+        "crc32c_hash",
     )
     monkeypatch.setattr("functions.uploads._gcs_copy", _gcs_copy)
 
