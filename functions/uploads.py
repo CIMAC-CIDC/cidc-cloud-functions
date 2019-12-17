@@ -104,7 +104,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
             metadata_with_urls,
         )
         with saved_failure_status(job, session):
-            trial = TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
+            trial = TrialMetadata.patch_assays(
+                trial_id, metadata_with_urls, session=session
+            )
 
         # Save downloadable files to the database
         # NOTE: this needs to happen after TrialMetadata.patch_assays
@@ -153,13 +155,7 @@ _pseudo_blob = namedtuple(
 
 
 def _make_pseudo_blob(object_name) -> _pseudo_blob:
-    return _pseudo_blob(
-        object_name,
-        0,
-        "_pseudo_md5",
-        "_pseudo_crc32c",
-        datetime.now(),
-    )
+    return _pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
 
 
 def _gcs_copy(
