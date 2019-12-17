@@ -104,7 +104,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
             metadata_with_urls,
         )
         with saved_failure_status(job, session):
-            TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
+            trial = TrialMetadata.patch_assays(
+                trial_id, metadata_with_urls, session=session
+            )
 
         # Save downloadable files to the database
         # NOTE: this needs to happen after TrialMetadata.patch_assays
@@ -135,7 +137,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.assay_patch = metadata_with_urls
 
         # Save the upload success and trigger email alert if transaction succeeds
-        job.ingestion_success(session=session, send_email=True, commit=True)
+        job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
         for object_url in url_mapping.values():
@@ -152,14 +154,8 @@ _pseudo_blob = namedtuple(
 )
 
 
-def _make_pseudo_blob(bucket_name, object_name) -> _pseudo_blob:
-    return _pseudo_blob(
-        f"{bucket_name}/{object_name}",
-        0,
-        "_pseudo_md5",
-        "_pseudo_crc32c",
-        datetime.now(),
-    )
+def _make_pseudo_blob(object_name) -> _pseudo_blob:
+    return _pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
 
 
 def _gcs_copy(
@@ -168,9 +164,9 @@ def _gcs_copy(
     """Copy a GCS object from one bucket to another"""
     if environ.get("FLASK_ENV") == "development":
         print(
-            f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
+            f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
-        return _make_pseudo_blob(target_bucket, target_object)
+        return _make_pseudo_blob(target_object)
 
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -196,7 +192,10 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if environ.get("FLASK_ENV") == "development":
-        return (bucket_name, _make_pseudo_blob(bucket_name, object_name))
+        print(
+            f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
+        )
+        return (bucket_name, _make_pseudo_blob(object_name))
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
