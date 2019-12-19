@@ -18,7 +18,12 @@ from cidc_api.models import (
 from cidc_api.gcloud_client import publish_artifact_upload
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
-from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session, make_pseudo_blob
+from .util import (
+    BackgroundContext,
+    extract_pubsub_data,
+    sqlalchemy_session,
+    make_pseudo_blob,
+)
 
 
 @contextmanager
@@ -147,7 +152,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
     return jsonify(url_mapping)
-
 
 
 def _gcs_copy(
