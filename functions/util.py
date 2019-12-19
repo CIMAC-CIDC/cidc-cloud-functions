@@ -2,6 +2,7 @@
 import base64
 from contextlib import contextmanager
 from typing import NamedTuple
+from collections import namedtuple
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

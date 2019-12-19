@@ -3,7 +3,6 @@ from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from os import environ
-from collections import namedtuple
 from datetime import datetime
 
 from flask import jsonify
