@@ -44,7 +44,9 @@ def generate_csvs(event: dict, context: BackgroundContext):
         )
 
 
-_pseudo_blob = namedtuple("_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"])
+_pseudo_blob = namedtuple(
+    "_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
+)
 
 
 def _upload_to_data_bucket(name: str, csv: str):
@@ -54,7 +56,9 @@ def _upload_to_data_bucket(name: str, csv: str):
         print(f"writing {fname}")
         with open(fname, "w") as f:
             f.write(csv)
-        return _pseudo_blob(f"./{fname}", 0, "_pseudo_md5_hash", "_pseudo_crc32c", datetime.now())
+        return _pseudo_blob(
+            f"./{fname}", 0, "_pseudo_md5_hash", "_pseudo_crc32c", datetime.now()
+        )
 
     client = storage.Client()
     bucket = client.get_bucket(GOOGLE_DATA_BUCKET)
