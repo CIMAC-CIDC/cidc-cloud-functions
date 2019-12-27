@@ -140,7 +140,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for _, object_url in url_mapping:
+        for _, target_url in url_mapping:
             print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
             publish_artifact_upload(target_url)
 
