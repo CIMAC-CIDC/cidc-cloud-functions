@@ -146,6 +146,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
+    return jsonify(dict(url_mapping))
 
 
 _pseudo_blob = namedtuple(
@@ -155,7 +156,6 @@ _pseudo_blob = namedtuple(
 
 def _make_pseudo_blob(object_name) -> _pseudo_blob:
     return _pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
-    return jsonify(dict(url_mapping))
 
 
 def _gcs_copy(
