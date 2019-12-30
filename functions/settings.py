@@ -1,5 +1,6 @@
 """Configuration for CIDC functions."""
 import os
+import json
 
 from cidc_api.config import get_sqlalchemy_database_uri, get_secret_manager
 
@@ -23,6 +24,11 @@ SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
 GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
+GOOGLE_ANALYSIS_GROUP_ROLE = "roles/storage.legacyObjectReader" # or should it be storage.objectViewer ?
+GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
+    os.environ.get("GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT", "{}")
+)
+
 
 # Auth0 config
 AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN")

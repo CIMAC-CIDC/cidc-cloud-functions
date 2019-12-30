@@ -1,7 +1,9 @@
 """Helpers for working with Cloud Functions."""
 import base64
+import datetime
 from contextlib import contextmanager
 from typing import NamedTuple
+from collections import namedtuple
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,6 +11,14 @@ from sqlalchemy.orm import sessionmaker
 from .settings import SQLALCHEMY_DATABASE_URI
 
 _engine = None
+
+_pseudo_blob = namedtuple(
+    "_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
+)
+
+
+def make_pseudo_blob(object_name) -> _pseudo_blob:
+    return _pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
 
 
 @contextmanager
