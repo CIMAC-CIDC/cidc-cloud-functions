@@ -24,7 +24,7 @@ SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
 GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
-GOOGLE_ANALYSIS_GROUP_ROLE = "roles/storage.legacyObjectReader" # or should it be storage.objectViewer ?
+GOOGLE_ANALYSIS_GROUP_ROLE = "roles/storage.legacyObjectReader"
 GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
     os.environ.get("GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT", "{}")
 )
