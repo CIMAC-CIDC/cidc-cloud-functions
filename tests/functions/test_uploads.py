@@ -99,12 +99,6 @@ def test_ingest_upload(capsys, monkeypatch):
     )
 
     _set_iam_policy = MagicMock()
-
-    # def _f(a):
-    #     raise Exception(a.to_api_repr())
-
-    # _set_iam_policy.side_effect = _f
-
     monkeypatch.setattr(
         "google.cloud.storage.bucket.Bucket.set_iam_policy", _set_iam_policy
     )

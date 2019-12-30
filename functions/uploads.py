@@ -201,7 +201,6 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     policy_json = storage_client._connection.api_request(
         method="GET",
         path=f"/b/{GOOGLE_DATA_BUCKET}/iam",
-        # data={"optionsRequestedPolicyVersion": 3},
         query_params={"optionsRequestedPolicyVersion": 3},
         _target_object=None,
     )
