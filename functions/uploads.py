@@ -228,7 +228,6 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     bucket.set_iam_policy(_GCSBucketPolicyV3WithConditions(policy_json))
 
 
-
 def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
