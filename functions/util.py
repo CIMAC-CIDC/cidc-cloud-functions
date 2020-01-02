@@ -21,6 +21,15 @@ def make_pseudo_blob(object_name) -> _pseudo_blob:
     return _pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
 
 
+pseudo_blob = namedtuple(
+    "pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
+)
+
+
+def make_pseudo_blob(object_name) -> pseudo_blob:
+    return pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
+
+
 @contextmanager
 def sqlalchemy_session():
     """Get a SQLAlchemy session from the connection pool"""
