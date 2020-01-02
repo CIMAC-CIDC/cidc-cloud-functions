@@ -78,14 +78,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
             return destination_object
 
         uuids = []
-        url_mapping = {}
+        url_mapping = []
         for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
-            url_mapping[upload_url] = target_url
+            url_mapping.append((upload_url, target_url))
             uuids.append(uuid)
 
         # Copy GCS blobs in parallel
         pool = ThreadPool(8)
-        destination_objects = pool.map(do_copy, url_mapping.items())
+        destination_objects = pool.map(do_copy, url_mapping)
         pool.close()
 
         downloadable_files = []
@@ -144,13 +144,13 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for object_url in url_mapping.values():
-            print(f"Publishing file object URL {object_url} to 'artifact_upload' topic")
-            publish_artifact_upload(object_url)
+        for _, target_url in url_mapping:
+            print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
+            publish_artifact_upload(target_url)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
-    return jsonify(url_mapping)
+    return jsonify(dict(url_mapping))
 
 
 def _gcs_copy(
