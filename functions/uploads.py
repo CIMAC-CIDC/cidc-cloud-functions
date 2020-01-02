@@ -3,7 +3,6 @@ from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from os import environ
-from collections import namedtuple
 from datetime import datetime
 
 from flask import jsonify
@@ -18,7 +17,12 @@ from cidc_api.models import (
 from cidc_api.gcloud_client import publish_artifact_upload
 
 from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
-from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
+from .util import (
+    BackgroundContext,
+    extract_pubsub_data,
+    sqlalchemy_session,
+    make_pseudo_blob,
+)
 
 
 @contextmanager
@@ -149,15 +153,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
     return jsonify(url_mapping)
 
 
-_pseudo_blob = namedtuple(
-    "_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
-)
-
-
-def _make_pseudo_blob(object_name) -> _pseudo_blob:
-    return _pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
-
-
 def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
@@ -166,7 +161,7 @@ def _gcs_copy(
         print(
             f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
-        return _make_pseudo_blob(target_object)
+        return make_pseudo_blob(target_object)
 
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -195,7 +190,7 @@ def _get_bucket_and_blob(
         print(
             f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
         )
-        return (bucket_name, _make_pseudo_blob(object_name))
+        return (bucket_name, make_pseudo_blob(object_name))
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)

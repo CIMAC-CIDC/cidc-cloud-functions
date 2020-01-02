@@ -2,6 +2,7 @@
 import base64
 from contextlib import contextmanager
 from typing import NamedTuple
+from collections import namedtuple
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,6 +10,15 @@ from sqlalchemy.orm import sessionmaker
 from .settings import SQLALCHEMY_DATABASE_URI
 
 _engine = None
+
+
+pseudo_blob = namedtuple(
+    "pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
+)
+
+
+def make_pseudo_blob(object_name) -> pseudo_blob:
+    return pseudo_blob(object_name, 0, "_pseudo_md5", "_pseudo_crc32c", datetime.now())
 
 
 @contextmanager
