@@ -98,10 +98,21 @@ def test_ingest_upload(capsys, monkeypatch):
         {"wes": "analysis-group@email"},
     )
 
-    _set_iam_policy = MagicMock()
+    # mocking `google.cloud.storage.Client()` to not actually create a client
+    _storage_client = MagicMock("_storage_client")
     monkeypatch.setattr(
-        "google.cloud.storage.bucket.Bucket.set_iam_policy", _set_iam_policy
+        "functions.uploads.storage.Client", lambda *a, **kw: _storage_client
     )
+
+    _bucket = MagicMock("_bucket")
+    _storage_client.get_bucket = lambda *a, **kw: _bucket
+
+    _storage_client._connection = _connection = MagicMock("_connection")
+
+    _api_request = _connection.api_request = MagicMock("_connection.api_request")
+    _api_request.return_value = {"bindings": []}
+
+    _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
 
     # Mock metadata merging functionality
     _save_file = MagicMock()
