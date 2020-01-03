@@ -113,7 +113,6 @@ def test_ingest_upload(capsys, monkeypatch):
     _api_request.return_value = {"bindings": []}
 
     _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
-    
 
     # Mock metadata merging functionality
     _save_file = MagicMock()
