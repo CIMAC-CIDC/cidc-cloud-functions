@@ -3,7 +3,6 @@ from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from os import environ
-from collections import namedtuple
 from datetime import datetime
 
 from flask import jsonify
@@ -17,8 +16,18 @@ from cidc_api.models import (
 )
 from cidc_api.gcloud_client import publish_artifact_upload
 
-from .settings import GOOGLE_DATA_BUCKET, GOOGLE_UPLOAD_BUCKET
-from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
+from .settings import (
+    GOOGLE_DATA_BUCKET,
+    GOOGLE_UPLOAD_BUCKET,
+    GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
+    GOOGLE_ANALYSIS_GROUP_ROLE,
+)
+from .util import (
+    BackgroundContext,
+    extract_pubsub_data,
+    sqlalchemy_session,
+    make_pseudo_blob,
+)
 
 
 @contextmanager
@@ -74,14 +83,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
             return destination_object
 
         uuids = []
-        url_mapping = {}
+        url_mapping = []
         for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
-            url_mapping[upload_url] = target_url
+            url_mapping.append((upload_url, target_url))
             uuids.append(uuid)
 
         # Copy GCS blobs in parallel
         pool = ThreadPool(8)
-        destination_objects = pool.map(do_copy, url_mapping.items())
+        destination_objects = pool.map(do_copy, url_mapping)
         pool.close()
 
         downloadable_files = []
@@ -90,7 +99,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
             with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
                 print(f"Adding artifact {destination_object.name} to metadata.")
-                metadata_with_urls, artifact_metadata, additional_metadata = TrialMetadata.merge_gcs_artifact(
+                (
+                    metadata_with_urls,
+                    artifact_metadata,
+                    additional_metadata,
+                ) = TrialMetadata.merge_gcs_artifact(
                     metadata_with_urls, job.assay_type, uuid, destination_object
                 )
 
@@ -104,7 +117,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
             metadata_with_urls,
         )
         with saved_failure_status(job, session):
-            TrialMetadata.patch_assays(trial_id, metadata_with_urls, session=session)
+            trial = TrialMetadata.patch_assays(
+                trial_id, metadata_with_urls, session=session
+            )
 
         # Save downloadable files to the database
         # NOTE: this needs to happen after TrialMetadata.patch_assays
@@ -134,32 +149,83 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # Update the job metadata to include artifacts
         job.assay_patch = metadata_with_urls
 
+        # Making files downloadable by a specified biofx analysis team group
+        assay_prefix = job.assay_type.split("_")[0]  # 'wes_bam' -> 'wes'
+        if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
+            analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
+            _gcs_add_prefix_reader_permission(
+                analysis_group_email,  # to whom give access to
+                f"{trial_id}/{assay_prefix}",  # to what sub-folder
+            )
+
         # Save the upload success and trigger email alert if transaction succeeds
-        job.ingestion_success(session=session, send_email=True, commit=True)
+        job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for object_url in url_mapping.values():
-            print(f"Publishing file object URL {object_url} to 'artifact_upload' topic")
-            publish_artifact_upload(object_url)
+        for _, target_url in url_mapping:
+            print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
+            publish_artifact_upload(target_url)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
-    return jsonify(url_mapping)
+    return jsonify(dict(url_mapping))
 
 
-_pseudo_blob = namedtuple(
-    "_pseudo_blob", ["name", "size", "md5_hash", "crc32c", "time_created"]
-)
+class _GCSBucketPolicyV3WithConditions:
+    """
+    A work-around class for python gcloud client not able to add conditional policies.
+    
+    `bucket_obj.set_iam_policy(policy_obj)` uses only `policy_obj.to_api_repr` 
+    thus we override only it.
+    """
+
+    def __init__(self, json):
+        self._json = json
+
+    def to_api_repr(self):
+        return self._json
 
 
-def _make_pseudo_blob(bucket_name, object_name) -> _pseudo_blob:
-    return _pseudo_blob(
-        f"{bucket_name}/{object_name}",
-        0,
-        "_pseudo_md5",
-        "_pseudo_crc32c",
-        datetime.now(),
+def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
+    """
+    Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
+    that allows `group_email` to read all objects within a `prefix`.
+    """
+    print(
+        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
     )
+
+    storage_client = storage.Client()
+    # Work-around for python gcloud client not able to get v3 policies:
+    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
+    policy_json = storage_client._connection.api_request(
+        method="GET",
+        path=f"/b/{GOOGLE_DATA_BUCKET}/iam",
+        query_params={"optionsRequestedPolicyVersion": 3},
+        _target_object=None,
+    )
+
+    # Work-around for python gcloud client not able to set v3 policies with conditions:
+    # We're adding them directly to the JSON request to API
+    cleaned_prefix = prefix.replace('"', '\\"').lstrip("/")
+    # following https://cloud.google.com/iam/docs/reference/rest/v1/Policy
+    policy_json["bindings"].append(
+        {
+            "role": GOOGLE_ANALYSIS_GROUP_ROLE,
+            "members": ["group:" + group_email],
+            "condition": {
+                "description": "Auto-assigned from cidc-cloud-functions/uploads",
+                "expression": f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}")',
+                "title": f"Biofx analysis {prefix}",
+            },
+        }
+    )
+    # TODO MAYBE FIX - is appending a policy idempotent in the Cloud backend?
+    # Or do we need to check and not add again / regularly clean?
+
+    # Work-around for python gcloud client not able to add v3 policies with conditions
+    policy_json["version"] = 3  # required to use conditions
+    bucket.set_iam_policy(_GCSBucketPolicyV3WithConditions(policy_json))
 
 
 def _gcs_copy(
@@ -168,9 +234,9 @@ def _gcs_copy(
     """Copy a GCS object from one bucket to another"""
     if environ.get("FLASK_ENV") == "development":
         print(
-            f"Would've copied {source_bucket}/{source_object} {target_bucket}/{target_object}"
+            f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
-        return _make_pseudo_blob(target_bucket, target_object)
+        return make_pseudo_blob(target_object)
 
     print(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
@@ -196,7 +262,10 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if environ.get("FLASK_ENV") == "development":
-        return (bucket_name, _make_pseudo_blob(bucket_name, object_name))
+        print(
+            f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
+        )
+        return (bucket_name, make_pseudo_blob(object_name))
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
