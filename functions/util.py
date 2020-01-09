@@ -2,9 +2,11 @@
 import base64
 import datetime
 from contextlib import contextmanager
-from typing import NamedTuple
+from io import BytesIO, StringIO
+from typing import NamedTuple, Union
 from collections import namedtuple
 
+from google.cloud import storage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -67,3 +69,23 @@ class BackgroundContext(NamedTuple):
     timestamp: str  # ISO 8601
     event_type: str  # e.g., "google.pubsub.topic.publish"
     resource: str
+
+
+def get_blob_as_stream(
+    object_name: str, as_string: bool = False
+) -> Union[BytesIO, StringIO]:
+    """Download data from GCS as a byte or string stream."""
+    file_bytes = _download_blob_bytes(object_name)
+    if as_string:
+        return StringIO(file_bytes.decode("utf-8"))
+    return BytesIO(file_bytes)
+
+
+def _download_blob_bytes(object_name: str) -> bytes:
+    """Download a blob as bytes from GCS."""
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
+    blob = bucket.get_blob(object_name)
+    if not blob:
+        Exception(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
+    return blob.download_as_string()

@@ -1,3 +1,4 @@
+from io import BytesIO, StringIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -55,3 +56,22 @@ def test_sqlalchemy_session(monkeypatch):
     session.commit.assert_not_called()
     session.rollback.assert_called_once()
     session.close.assert_called_once()
+
+
+def test_get_blob_as_stream(monkeypatch):
+    """Ensure GCS blob utility works as expected"""
+    blob_str = "foo bar"
+    blob_bytes = blob_str.encode()
+    get_blob_bytes = MagicMock()
+    get_blob_bytes.return_value = blob_bytes
+    monkeypatch.setattr(util, "_download_blob_bytes", get_blob_bytes)
+
+    # as BytesIO
+    stream = util.get_blob_as_stream("")
+    assert isinstance(stream, BytesIO)
+    assert stream.read() == blob_bytes
+
+    # as StringIO
+    stream = util.get_blob_as_stream("", as_string=True)
+    assert isinstance(stream, StringIO)
+    assert stream.read() == blob_str
