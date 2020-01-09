@@ -82,10 +82,13 @@ def get_blob_as_stream(
 
 
 def _download_blob_bytes(object_name: str) -> bytes:
-    """Download a blob as bytes from GCS."""
+    """
+    Download a blob as bytes from GCS. Throws a FileNotFound exception 
+    if the object doesn't exist.
+    """
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
     blob = bucket.get_blob(object_name)
     if not blob:
-        Exception(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
+        FileNotFoundError(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
     return blob.download_as_string()
