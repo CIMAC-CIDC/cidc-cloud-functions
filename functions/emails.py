@@ -3,6 +3,7 @@ import json
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+import python_http_client.exceptions
 
 from .settings import SENDGRID_API_KEY
 from .util import BackgroundContext, extract_pubsub_data
@@ -53,4 +54,4 @@ def send_email(event: dict, context: BackgroundContext):
         raise e
 
     print(f"Email status code: {response.status_code}")
-    print(f"Email response: {response!r}\n{response.__dict__}")
+    print(f"Email response: {response} {response._headers}")
