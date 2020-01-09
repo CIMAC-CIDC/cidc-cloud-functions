@@ -26,6 +26,7 @@ def send_email(event: dict, context: BackgroundContext):
         event - should consist at least of "to_emails", "subject", and "html_content"
                 but can also include other properties supported by sendgrid json api.
     """
+    print(f"got {event}")
     email = json.loads(extract_pubsub_data(event))
 
     assert "to_emails" in email
@@ -41,10 +42,15 @@ def send_email(event: dict, context: BackgroundContext):
         ).get(),
         **email,  # including everything else as it is.
     )
-    print(f"Sending email: {email}")
+    print(f"Sending email: {message}")
 
     sg = _get_sg_client()
-    response = sg.send(message)
+    try:
+        response = sg.send(message)
+    except python_http_client.exceptions.HTTPError as e:
+        print(f"Failed sending email: {e!r}")
+        print(f"{e.__dict__!r}")
+        raise e
 
     print(f"Email status code: {response.status_code}")
-    print(f"Email response body: {response.body}")
+    print(f"Email response: {response!r}\n{response.__dict__}")
