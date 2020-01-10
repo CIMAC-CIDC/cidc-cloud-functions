@@ -17,6 +17,7 @@ if not GCP_PROJECT:
     load_dotenv()
 
 TESTING = os.environ.get("TESTING")
+FLASK_ENV = os.environ.get("FLASK_ENV")
 secrets = get_secret_manager(TESTING)
 
 # GCP config

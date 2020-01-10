@@ -17,6 +17,7 @@ from cidc_api.models import (
 from cidc_api.gcloud_client import publish_artifact_upload
 
 from .settings import (
+    FLASK_ENV,
     GOOGLE_DATA_BUCKET,
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
@@ -232,7 +233,7 @@ def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
     """Copy a GCS object from one bucket to another"""
-    if environ.get("FLASK_ENV") == "development":
+    if FLASK_ENV == "development":
         print(
             f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
@@ -261,7 +262,7 @@ def _get_bucket_and_blob(
 ) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
     """Get GCS metadata for a storage bucket and blob"""
 
-    if environ.get("FLASK_ENV") == "development":
+    if FLASK_ENV == "development":
         print(
             f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
         )
