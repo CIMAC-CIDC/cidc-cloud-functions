@@ -46,10 +46,12 @@ def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundC
     """
     Generate derivative files from an assay or analysis upload.
     """
-    with sqlalchemy_session() as session:
+    upload_id = extract_pubsub_data(event)
 
-        upload_id = extract_pubsub_data(event)
-        upload_record: AssayUploads = AssayUploads.find_by_id(upload_id)
+    with sqlalchemy_session() as session:
+        upload_record: AssayUploads = AssayUploads.find_by_id(
+            upload_id, session=session
+        )
 
         if not upload_record:
             raise Exception(f"No upload record with id {upload_id} found.")
