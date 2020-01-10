@@ -29,6 +29,9 @@ GOOGLE_ANALYSIS_GROUP_ROLE = "roles/storage.legacyObjectReader"
 GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
     os.environ.get("GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT", "{}")
 )
+GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC = os.environ.get(
+    "GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC"
+)
 
 
 # Auth0 config

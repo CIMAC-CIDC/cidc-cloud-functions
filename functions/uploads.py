@@ -14,7 +14,7 @@ from cidc_api.models import (
     AssayUploadStatus,
     prism,
 )
-from cidc_api.gcloud_client import publish_artifact_upload
+from cidc_api.gcloud_client import publish_artifact_upload, _encode_and_publish
 
 from .settings import (
     FLASK_ENV,
@@ -22,6 +22,7 @@ from .settings import (
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
+    GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC,
 )
 from .util import (
     BackgroundContext,
@@ -166,6 +167,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
         for _, target_url in url_mapping:
             print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
             publish_artifact_upload(target_url)
+
+        # Trigger post-processing on entire upload
+        _encode_and_publish(job.id, GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
