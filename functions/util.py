@@ -2,13 +2,15 @@
 import base64
 import datetime
 from contextlib import contextmanager
-from typing import NamedTuple
+from io import BytesIO, StringIO
+from typing import NamedTuple, Union
 from collections import namedtuple
 
+from google.cloud import storage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from .settings import SQLALCHEMY_DATABASE_URI
+from .settings import SQLALCHEMY_DATABASE_URI, FLASK_ENV
 
 _engine = None
 
@@ -67,3 +69,43 @@ class BackgroundContext(NamedTuple):
     timestamp: str  # ISO 8601
     event_type: str  # e.g., "google.pubsub.topic.publish"
     resource: str
+
+
+def get_blob_as_stream(
+    object_name: str, as_string: bool = False
+) -> Union[BytesIO, StringIO]:
+    """Download data from the CIDC data bucket as a byte or string stream."""
+    file_bytes = _download_blob_bytes(object_name)
+    if as_string:
+        return StringIO(file_bytes.decode("utf-8"))
+    return BytesIO(file_bytes)
+
+
+def _download_blob_bytes(object_name: str) -> bytes:
+    """
+    Download a blob as bytes from GCS. Throws a FileNotFound exception 
+    if the object doesn't exist.
+    """
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
+    blob = bucket.get_blob(object_name)
+    if not blob:
+        FileNotFoundError(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
+    return blob.download_as_string()
+
+
+def upload_to_data_bucket(object_name: str, data: Union[str, bytes]) -> storage.Blob:
+    """Upload data to blob called `object_name` in the CIDC data bucket."""
+    if FLASK_ENV == "development":
+        fname = object_name.replace("/", "_")
+        print(f"writing {fname}")
+        with open(fname, "w") as f:
+            f.write(data)
+        return make_pseudo_blob(fname)
+
+    client = storage.Client()
+    bucket = client.get_bucket(GOOGLE_DATA_BUCKET)
+    blob = bucket.blob(object_name)
+    blob.upload_from_string(data)
+
+    return blob
