@@ -89,13 +89,14 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
         blob = upload_to_data_bucket(artifact.object_url, artifact.data)
 
         # Save to database
-        DownloadableFiles.create_from_blob(
+        df_record = DownloadableFiles.create_from_blob(
             trial_record.trial_id,
             artifact.file_type,
             artifact.data_format,
             blob,
             session=session,
         )
+        df_record.additional_metadata = artifact.metadata
 
     # Update the trial metadata blob (in case the file derivation modified it)
     trial_record.metadata_json = derivation_result.metadata
