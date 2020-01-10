@@ -12,7 +12,8 @@ Google Cloud Functions for carrying out event-driven tasks in the CIDC.
 - Pub/Sub-triggered:
   - `ingest_upload`: when a successful upload job is published to the "uploads" topic, transfers data from the upload bucket to the data bucket in GCS.
   - `vis_preprocessing`: perform and save precomputation on a given `downloadable_file` to facilitate visualization of that file's data in the CIDC Portal.
-  - `generate_csvs`: when a shipping/receiving manifest is ingested successfully, generate new participant/sample CSVs from the updated trial metadata.
+  - `derive_files_from_manifest_upload`: when a shipping/receiving manifest is ingested successfully, generate derivative files for the associated trial.
+  - `derive_files_from_assay_or_analysis_upload`: when an assay or analysis upload completes, generate derivative files for the associated trial.
   - `store_auth0_logs`: pull logs for the past day from Auth0 and store them in Google Cloud Storage.
   - `send_email`: when an email is published to the "emails" topic, sends the email using the SendGrid API.
 
