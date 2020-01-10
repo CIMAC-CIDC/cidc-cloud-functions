@@ -169,7 +169,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             publish_artifact_upload(target_url)
 
         # Trigger post-processing on entire upload
-        _encode_and_publish(job.id, GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
+        _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.

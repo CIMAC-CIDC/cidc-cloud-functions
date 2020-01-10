@@ -127,6 +127,9 @@ def test_ingest_upload(capsys, monkeypatch):
     publish_artifact_upload = MagicMock()
     monkeypatch.setattr(uploads, "publish_artifact_upload", publish_artifact_upload)
 
+    _encode_and_publish = MagicMock()
+    monkeypatch.setattr(uploads, "_encode_and_publish", _encode_and_publish)
+
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None).json
 
@@ -160,6 +163,7 @@ def test_ingest_upload(capsys, monkeypatch):
     assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
     assert email_was_sent(capsys.readouterr()[0])
     publish_artifact_upload.assert_called()
+    _encode_and_publish.assert_called()
 
 
 def test_saved_failure_status(capsys):
