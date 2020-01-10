@@ -43,6 +43,9 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
 
 
 def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundContext):
+    """
+    Generate derivative files from an assay or analysis upload.
+    """
     with sqlalchemy_session() as session:
 
         upload_id = extract_pubsub_data(event)
