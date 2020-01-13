@@ -99,6 +99,6 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
         df_record.additional_metadata = artifact.metadata
 
     # Update the trial metadata blob (in case the file derivation modified it)
-    trial_record.metadata_json = derivation_result.metadata
-
+    trial_record.metadata_json = derivation_result.trial_metadata
+    
     session.commit()
