@@ -100,5 +100,5 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
 
     # Update the trial metadata blob (in case the file derivation modified it)
     trial_record.metadata_json = derivation_result.trial_metadata
-    
+
     session.commit()
