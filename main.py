@@ -1,6 +1,12 @@
 """Entrypoint for CIDC cloud functions."""
 
-from functions import ingest_upload, send_email, store_auth0_logs, vis_preprocessing
+from functions import (
+    ingest_upload,
+    send_email,
+    store_auth0_logs,
+    vis_preprocessing,
+    derive_files_from_manifest_upload,
+)
 
 from flask import Flask, request, jsonify
 
@@ -9,7 +15,7 @@ app = Flask(__name__)
 topics_to_functions = {
     "uploads": ingest_upload,
     "artifact_upload": vis_preprocessing,
-    "patient_sample_update": generate_csvs,
+    "patient_sample_update": derive_files_from_manifest_upload,
     "daily_cron": store_auth0_logs,
     "emails": send_email,
 }
