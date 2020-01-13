@@ -1,6 +1,7 @@
 """Entrypoint for CIDC cloud functions."""
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 from functions import ingest_upload, send_email, store_auth0_logs, vis_preprocessing
 =======
 from functions import (
@@ -10,6 +11,9 @@ from functions import (
     vis_preprocessing,
 )
 >>>>>>> Remove broken import
+=======
+from functions import ingest_upload, send_email, store_auth0_logs, vis_preprocessing
+>>>>>>> Autoformat
 
 from flask import Flask, request, jsonify
 
