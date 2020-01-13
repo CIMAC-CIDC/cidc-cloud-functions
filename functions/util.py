@@ -10,7 +10,7 @@ from google.cloud import storage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from .settings import SQLALCHEMY_DATABASE_URI, FLASK_ENV
+from .settings import SQLALCHEMY_DATABASE_URI, FLASK_ENV, GOOGLE_DATA_BUCKET
 
 _engine = None
 
