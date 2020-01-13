@@ -17,6 +17,7 @@ if not GCP_PROJECT:
     load_dotenv()
 
 TESTING = os.environ.get("TESTING")
+FLASK_ENV = os.environ.get("FLASK_ENV")
 secrets = get_secret_manager(TESTING)
 
 # GCP config
@@ -27,6 +28,9 @@ GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
 GOOGLE_ANALYSIS_GROUP_ROLE = "roles/storage.legacyObjectReader"
 GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
     os.environ.get("GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT", "{}")
+)
+GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC = os.environ.get(
+    "GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC"
 )
 
 

@@ -14,13 +14,15 @@ from cidc_api.models import (
     AssayUploadStatus,
     prism,
 )
-from cidc_api.gcloud_client import publish_artifact_upload
+from cidc_api.gcloud_client import publish_artifact_upload, _encode_and_publish
 
 from .settings import (
+    FLASK_ENV,
     GOOGLE_DATA_BUCKET,
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
+    GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC,
 )
 from .util import (
     BackgroundContext,
@@ -166,6 +168,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
             print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
             publish_artifact_upload(target_url)
 
+        # Trigger post-processing on entire upload
+        _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
+
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
     return jsonify(dict(url_mapping))
@@ -232,7 +237,7 @@ def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
     """Copy a GCS object from one bucket to another"""
-    if environ.get("FLASK_ENV") == "development":
+    if FLASK_ENV == "development":
         print(
             f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
@@ -261,7 +266,7 @@ def _get_bucket_and_blob(
 ) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
     """Get GCS metadata for a storage bucket and blob"""
 
-    if environ.get("FLASK_ENV") == "development":
+    if FLASK_ENV == "development":
         print(
             f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
         )
