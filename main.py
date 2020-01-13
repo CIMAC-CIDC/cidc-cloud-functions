@@ -1,6 +1,15 @@
 """Entrypoint for CIDC cloud functions."""
 
+<<<<<<< HEAD
 from functions import ingest_upload, send_email, store_auth0_logs, vis_preprocessing
+=======
+from functions import (
+    ingest_upload,
+    send_email,
+    store_auth0_logs,
+    vis_preprocessing,
+)
+>>>>>>> Remove broken import
 
 from flask import Flask, request, jsonify
 
