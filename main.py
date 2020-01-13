@@ -1,11 +1,6 @@
 """Entrypoint for CIDC cloud functions."""
 
-from functions import (
-    ingest_upload,
-    send_email,
-    store_auth0_logs,
-    vis_preprocessing,
-)
+from functions import ingest_upload, send_email, store_auth0_logs, vis_preprocessing
 
 from flask import Flask, request, jsonify
 
