@@ -88,7 +88,7 @@ def _ihc_combined_transform(
     if file_record.assay_type.lower() != "ihc marker combined":
         return None
 
-    assert file_record.data_format == "csv"
+    assert file_record.data_format.lower() == "csv"
 
     print(f"Generating IHC combined visualization config for file {file_record.id}")
 

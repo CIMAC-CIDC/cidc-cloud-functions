@@ -34,6 +34,56 @@ def metadata_df():
     return metadata_df
 
 
+def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
+    """Test the IHC combined transform."""
+    # Mock an IHC combined downloadable file record
+    ihc_record = MagicMock()
+    ihc_record.object_url = "foo"
+    ihc_record.assay_type = "ihc marker combined"
+    ihc_record.data_format = "CSV"
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = ihc_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    # Mock GCS call
+    gcs_blob = MagicMock()
+    _get_blob_as_stream = MagicMock()
+    combined_csv = StringIO("cimac_id,foo,bar\nCTTTTPPS1.01,1,2\nCTTTTPPS2.01,3,4")
+    _get_blob_as_stream.return_value = combined_csv
+    monkeypatch.setattr(
+        functions.visualizations, "get_blob_as_stream", _get_blob_as_stream
+    )
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_by_object_url.assert_called_once()
+    _get_blob_as_stream.assert_called_once()
+    _get_metadata_df.assert_called_once()
+
+    assert ihc_record.ihc_combined_plot == [
+        {
+            "cimac_id": "CTTTTPPS1.01",
+            "foo": 1,
+            "bar": 2,
+            "cimac_participant_id": "CTTTTPP",
+            "cohort_name": "Arm_A",
+            "collection_event_name": "Event1",
+        },
+        {
+            "cimac_id": "CTTTTPPS2.01",
+            "foo": 3,
+            "bar": 4,
+            "cimac_participant_id": "CTTTTPP",
+            "cohort_name": "Arm_A",
+            "collection_event_name": "Event2",
+        },
+    ]
+
+
 def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
     """Test the NPX-clustergrammer transform."""
     # Test no file found
