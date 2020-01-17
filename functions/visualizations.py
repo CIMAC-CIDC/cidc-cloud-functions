@@ -1,4 +1,5 @@
 import re
+import json
 from io import BytesIO, StringIO
 from typing import Optional, Union
 
@@ -32,7 +33,7 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
 
         # Apply the transformations and get derivative data for visualization.
         for transform_name, transform in _get_transforms().items():
-            vis_json = transform(file_blob, file_record.data_format, metadata_df)
+            vis_json = transform(file_blob, file_record, metadata_df)
             if vis_json:
                 # Add the vis config to the file_record
                 setattr(file_record, transform_name, vis_json)
@@ -69,22 +70,47 @@ def _get_metadata_df(trial_id: str) -> pd.DataFrame:
 def _get_transforms() -> dict:
     """ 
     Get a list of functions taking an open file and
-    that file's `data_format` as arguments, returning
+    that file's downloadable file record as arguments, returning
     a JSON blob that the frontend will use for visualization.
     """
-    return {"clustergrammer": _ClustergrammerTransform()}
+    return {
+        "clustergrammer": _ClustergrammerTransform(),
+        "ihc_combined_plot": _ihc_combined_transform,
+    }
+
+
+def _ihc_combined_transform(
+    data_file: BytesIO, file_record: DownloadableFiles, metadata_df: pd.DataFrame
+) -> Optional[dict]:
+    """
+    Prepare an IHC combined file for visualization by joining it with relevant metadata
+    """
+    if file_record.assay_type.lower() != "ihc marker combined":
+        return None
+
+    assert file_record.data_format == "csv"
+
+    print(f"Generating IHC combined visualization config for file {file_record.id}")
+
+    data_df = pd.read_csv(data_file)
+    full_df = data_df.join(metadata_df, on="cimac_id", how="inner")
+
+    return json.loads(full_df.to_json(orient="records"))
 
 
 class _ClustergrammerTransform:
     def __call__(
-        self, data_file: BytesIO, data_format: str, metadata_df: pd.DataFrame
+        self,
+        data_file: BytesIO,
+        file_record: DownloadableFiles,
+        metadata_df: pd.DataFrame,
     ) -> Optional[dict]:
         """
         Prepare the data file for visualization in clustergrammer. 
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
-        fmt = data_format.lower()
+        fmt = file_record.data_format.lower()
         if not hasattr(self, fmt):
             return None
         return getattr(self, fmt)(data_file, metadata_df)
