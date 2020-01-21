@@ -147,10 +147,10 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
 
 @pytest.mark.parametrize(
-    "data_format",
+    "upload_type",
     ("cell counts compartment", "cell counts assignment", "cell counts profiling"),
 )
-def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, data_format):
+def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
     """Test the CyTOF-clustergrammer transform."""
     # Test no file found
     monkeypatch.setattr(
@@ -162,7 +162,7 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, data_format):
     # Mock a CyTOF summary downloadable file record
     cytof_record = MagicMock()
     cytof_record.object_url = "foo"
-    cytof_record.data_format = data_format
+    cytof_record.assay_type = upload_type
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = cytof_record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
@@ -230,3 +230,13 @@ def test_npx_to_dataframe():
         {"CTTTTPPS1.01": [1, -1], "CTTTTPPS2.01": [-1, 1]}, index=["Assay1", "Assay2"]
     )
     assert expected_df.equals(npx_df)
+
+
+def test_clustergrammerify_single_sample(metadata_df):
+    """Ensure an assertion error gets raised if only one sample is passed to clustergrammerify"""
+    cg = _ClustergrammerTransform()
+
+    data_df = pd.DataFrame({"CTTTPPS1.01": [1]}, index=["row1"])
+
+    with pytest.raises(AssertionError, match="with only one sample"):
+        cg._clustergrammerify(data_df, metadata_df)

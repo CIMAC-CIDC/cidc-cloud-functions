@@ -110,11 +110,9 @@ class _ClustergrammerTransform:
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
-        fmt = file_record.data_format.lower()
-
-        if fmt == "npx":
+        if file_record.data_format.lower() == "npx":
             return self.npx(data_file, metadata_df)
-        elif fmt in (
+        elif file_record.assay_type.lower() in (
             "cell counts compartment",
             "cell counts assignment",
             "cell counts profiling",
@@ -134,7 +132,6 @@ class _ClustergrammerTransform:
         """Prepare CyTOF summary csv for visualization in clustergrammer"""
         # Load the CyTOF summary data into a dataframe
         cytof_df = _cytof_summary_to_dataframe(data_file)
-
         return self._clustergrammerify(cytof_df, metadata_df)
 
     def _clustergrammerify(
@@ -144,6 +141,10 @@ class _ClustergrammerTransform:
         Produce the clustergrammer config for the given data and metadata dfs.
         `data_df` must be a dataframe with CIMAC ID column headers.
         """
+        assert (
+            data_df.shape[1] > 1
+        ), "Cannot generate clustergrammer visualization for data with only one sample."
+
         # Add category information to `data_df`'s column headers in the format
         # that Clustergrammer expects:
         #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
