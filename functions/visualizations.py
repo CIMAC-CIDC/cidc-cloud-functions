@@ -1,6 +1,6 @@
 import re
 import json
-from io import BytesIO, StringIO
+from io import BytesIO
 from typing import Optional, Union
 
 import pandas as pd
@@ -110,20 +110,45 @@ class _ClustergrammerTransform:
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
-        fmt = file_record.data_format.lower()
-        if not hasattr(self, fmt):
-            return None
-        return getattr(self, fmt)(data_file, metadata_df)
+        if file_record.data_format.lower() == "npx":
+            return self.npx(data_file, metadata_df)
+        elif file_record.assay_type.lower() in (
+            "cell counts compartment",
+            "cell counts assignment",
+            "cell counts profiling",
+        ):
+            return self.cytof_summary(data_file, metadata_df)
+
+        return None
 
     def npx(self, data_file, metadata_df: pd.DataFrame) -> dict:
         """Prepare an NPX file for visualization in clustergrammer"""
         # Load the NPX data into a dataframe.
         npx_df = _npx_to_dataframe(data_file)
 
-        # Add category information to `npx_df`'s column headers in the format
+        return self._clustergrammerify(npx_df, metadata_df)
+
+    def cytof_summary(self, data_file, metadata_df: pd.DataFrame) -> dict:
+        """Prepare CyTOF summary csv for visualization in clustergrammer"""
+        # Load the CyTOF summary data into a dataframe
+        cytof_df = _cytof_summary_to_dataframe(data_file)
+        return self._clustergrammerify(cytof_df, metadata_df)
+
+    def _clustergrammerify(
+        self, data_df: pd.DataFrame, metadata_df: pd.DataFrame
+    ) -> dict:
+        """
+        Produce the clustergrammer config for the given data and metadata dfs.
+        `data_df` must be a dataframe with CIMAC ID column headers.
+        """
+        assert (
+            data_df.shape[1] > 1
+        ), "Cannot generate clustergrammer visualization for data with only one sample."
+
+        # Add category information to `data_df`'s column headers in the format
         # that Clustergrammer expects:
         #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
-        npx_df_columns_with_categories = metadata_df.loc[npx_df.columns].apply(
+        data_df_columns_with_categories = metadata_df.loc[data_df.columns].apply(
             lambda row: (
                 f"CIMAC Sample ID: {row.name}",
                 f"Participant ID: {row.cimac_participant_id}",
@@ -132,19 +157,17 @@ class _ClustergrammerTransform:
             ),
             axis=1,
         )
-        npx_df.columns = npx_df_columns_with_categories
+        data_df.columns = data_df_columns_with_categories
 
         # TODO: find a better way to handle missing values
-        npx_df.fillna(0, inplace=True)
+        data_df.fillna(0, inplace=True)
 
         # Produce a clustergrammer JSON blob for this dataframe.
         net = CGNetwork()
-        net.load_df(npx_df)
+        net.load_df(data_df)
         net.normalize()
         net.cluster()
         return net.viz
-
-    # TODO: other file types
 
 
 def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
@@ -180,3 +203,20 @@ def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
     raw.drop(columns=["Plate ID", "QC Warning"], inplace=True)
 
     return raw.T
+
+
+def _cytof_summary_to_dataframe(csv: BytesIO) -> pd.DataFrame:
+    """Load a CyTOF summary CSV into a dataframe with CIMAC IDs as column headers"""
+    raw_df = pd.read_csv(csv)
+
+    # Index on CIMAC ID column
+    indexed_df = raw_df.set_index("cimac_id")
+
+    # Drop unused metadata columns (we should get these from the metadata df)
+    for col in ["cimac_participant_id", "protocol_identifier"]:
+        try:
+            indexed_df.drop(col, axis=1, inplace=True)
+        except KeyError:
+            pass
+
+    return indexed_df.T
