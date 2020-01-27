@@ -8,10 +8,10 @@ from datetime import datetime
 from flask import jsonify
 from google.cloud import storage
 from cidc_api.models import (
-    AssayUploads,
+    UploadJobs,
     TrialMetadata,
     DownloadableFiles,
-    AssayUploadStatus,
+    UploadJobStatus,
     prism,
 )
 from cidc_api.gcloud_client import publish_artifact_upload, _encode_and_publish
@@ -33,12 +33,12 @@ from .util import (
 
 
 @contextmanager
-def saved_failure_status(job: AssayUploads, session):
+def saved_failure_status(job: UploadJobs, session):
     """Save an upload failure to the database before raising an exception."""
     try:
         yield
     except Exception as e:
-        job.status = AssayUploadStatus.MERGE_FAILED.value
+        job.status = UploadJobStatus.MERGE_FAILED.value
         job.status_details = str(e)
         session.commit()
         raise e
@@ -53,12 +53,12 @@ def ingest_upload(event: dict, context: BackgroundContext):
     job_id = int(extract_pubsub_data(event))
 
     with sqlalchemy_session() as session:
-        job: AssayUploads = AssayUploads.find_by_id(job_id, session=session)
+        job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
         if not job:
             raise Exception(f"No assay upload job with id {job_id} found.")
 
         # Ensure this is a completed upload and nothing else
-        if AssayUploadStatus(job.status) != AssayUploadStatus.UPLOAD_COMPLETED:
+        if UploadJobStatus(job.status) != UploadJobStatus.UPLOAD_COMPLETED:
             raise Exception(
                 f"Received ID for job with status {job.status}. Aborting ingestion."
             )
@@ -67,7 +67,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
         )
 
-        trial_id = job.assay_patch.get(prism.PROTOCOL_ID_FIELD_NAME)
+        trial_id = job.metadata_patch.get(prism.PROTOCOL_ID_FIELD_NAME)
         if not trial_id:
             # We should never hit this, since metadata should be pre-validated.
             with saved_failure_status(job, session):
@@ -96,7 +96,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         pool.close()
 
         downloadable_files = []
-        metadata_with_urls = job.assay_patch
+        metadata_with_urls = job.metadata_patch
         for destination_object, uuid in zip(destination_objects, uuids):
             with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
@@ -106,7 +106,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     artifact_metadata,
                     additional_metadata,
                 ) = TrialMetadata.merge_gcs_artifact(
-                    metadata_with_urls, job.assay_type, uuid, destination_object
+                    metadata_with_urls, job.upload_type, uuid, destination_object
                 )
 
             # Hang on to the artifact metadata
@@ -132,7 +132,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             with saved_failure_status(job, session):
                 DownloadableFiles.create_from_metadata(
                     trial_id,
-                    job.assay_type,
+                    job.upload_type,
                     artifact_metadata,
                     additional_metadata=additional_metadata,
                     session=session,
@@ -145,14 +145,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
             full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
             print(f"Saving {full_uri} as a downloadable_file.")
             DownloadableFiles.create_from_blob(
-                trial_id, job.assay_type, "Assay Metadata", xlsx_blob, session=session
+                trial_id, job.upload_type, "Assay Metadata", xlsx_blob, session=session
             )
 
         # Update the job metadata to include artifacts
-        job.assay_patch = metadata_with_urls
+        job.metadata_patch = metadata_with_urls
 
         # Making files downloadable by a specified biofx analysis team group
-        assay_prefix = job.assay_type.split("_")[0]  # 'wes_bam' -> 'wes'
+        assay_prefix = job.upload_type.split("_")[0]  # 'wes_bam' -> 'wes'
         if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
             analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
             _gcs_add_prefix_reader_permission(
