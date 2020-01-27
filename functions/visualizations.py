@@ -85,7 +85,7 @@ def _ihc_combined_transform(
     """
     Prepare an IHC combined file for visualization by joining it with relevant metadata
     """
-    if file_record.assay_type.lower() != "ihc marker combined":
+    if file_record.upload_type.lower() != "ihc marker combined":
         return None
 
     assert file_record.data_format.lower() == "csv"
@@ -112,7 +112,7 @@ class _ClustergrammerTransform:
         """
         if file_record.data_format.lower() == "npx":
             return self.npx(data_file, metadata_df)
-        elif file_record.assay_type.lower() in (
+        elif file_record.upload_type.lower() in (
             "cell counts compartment",
             "cell counts assignment",
             "cell counts profiling",

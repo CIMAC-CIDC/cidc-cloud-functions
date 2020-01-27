@@ -2,9 +2,8 @@ from google.cloud import storage
 from cidc_api.models import (
     DownloadableFiles,
     TrialMetadata,
-    ManifestUploads,
-    AssayUploads,
-    AssayUploadStatus,
+    UploadJobs,
+    UploadJobStatus,
     unprism,
 )
 from collections import namedtuple
@@ -28,9 +27,7 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
     upload_id = extract_pubsub_data(event)
 
     with sqlalchemy_session() as session:
-        upload_record: ManifestUploads = ManifestUploads.find_by_id(
-            upload_id, session=session
-        )
+        upload_record: UploadJobs = UploadJobs.find_by_id(upload_id, session=session)
         if not upload_record:
             raise Exception(f"No manifest upload record found with id {upload_id}.")
 
@@ -38,7 +35,7 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
 
         # Run the file derivation
         _derive_files_from_upload(
-            upload_record.trial_id, upload_record.manifest_type, session
+            upload_record.trial_id, upload_record.upload_type, session
         )
 
 
@@ -49,14 +46,12 @@ def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundC
     upload_id = extract_pubsub_data(event)
 
     with sqlalchemy_session() as session:
-        upload_record: AssayUploads = AssayUploads.find_by_id(
-            upload_id, session=session
-        )
+        upload_record: UploadJobs = UploadJobs.find_by_id(upload_id, session=session)
 
         if not upload_record:
             raise Exception(f"No upload record with id {upload_id} found.")
 
-        if AssayUploadStatus(upload_record.status) != AssayUploadStatus.MERGE_COMPLETED:
+        if UploadJobStatus(upload_record.status) != UploadJobStatus.MERGE_COMPLETED:
             raise Exception(
                 f"Cannot perform postprocessing on upload {upload_id}: status is {upload_record.status}"
             )
@@ -67,7 +62,7 @@ def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundC
 
         # Run the file derivation
         _derive_files_from_upload(
-            upload_record.trial_id, upload_record.assay_type, session
+            upload_record.trial_id, upload_record.upload_type, session
         )
 
 

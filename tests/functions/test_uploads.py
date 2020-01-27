@@ -5,8 +5,8 @@ import datetime
 import pytest
 
 from cidc_api.models import (
-    AssayUploads,
-    AssayUploadStatus,
+    UploadJobs,
+    UploadJobStatus,
     TrialMetadata,
     DownloadableFiles,
     prism,
@@ -42,13 +42,13 @@ def test_ingest_upload(capsys, monkeypatch):
     ARTIFACT = {"test-prop": "test-val"}
     TRIAL_ID = "CIMAC-12345"
 
-    job = AssayUploads(
+    job = UploadJobs(
         id=JOB_ID,
         uploader_email="test@email.com",
         trial_id=TRIAL_ID,
         gcs_xlsx_uri="test.xlsx",
         gcs_file_map=FILE_MAP,
-        assay_patch={
+        metadata_patch={
             prism.PROTOCOL_ID_FIELD_NAME: TRIAL_ID,
             "assays": {
                 "wes": [
@@ -66,8 +66,8 @@ def test_ingest_upload(capsys, monkeypatch):
                 ]
             },
         },
-        status=AssayUploadStatus.UPLOAD_COMPLETED.value,
-        assay_type="wes_bam",
+        status=UploadJobStatus.UPLOAD_COMPLETED.value,
+        upload_type="wes_bam",
     )
 
     # Since the test database isn't yet set up with migrations,
@@ -75,7 +75,7 @@ def test_ingest_upload(capsys, monkeypatch):
     # store or retrieve data
     find_by_id = MagicMock()
     find_by_id.return_value = job
-    monkeypatch.setattr(AssayUploads, "find_by_id", find_by_id)
+    monkeypatch.setattr(UploadJobs, "find_by_id", find_by_id)
 
     # Mock data transfer functionality
     _gcs_copy = MagicMock()
@@ -160,7 +160,7 @@ def test_ingest_upload(capsys, monkeypatch):
     ]
 
     # Check that the job status was updated to reflect a successful upload
-    assert job.status == AssayUploadStatus.MERGE_COMPLETED.value
+    assert job.status == UploadJobStatus.MERGE_COMPLETED.value
     assert email_was_sent(capsys.readouterr()[0])
     publish_artifact_upload.assert_called()
     _encode_and_publish.assert_called()
@@ -186,7 +186,7 @@ def test_saved_failure_status(capsys):
         with saved_failure_status(job, session):
             raise Exception(message)
 
-    assert job.status == AssayUploadStatus.MERGE_FAILED.value
+    assert job.status == UploadJobStatus.MERGE_FAILED.value
     assert job.status_details == message
     session.commit.assert_called_once()
 
