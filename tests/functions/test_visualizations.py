@@ -41,7 +41,7 @@ def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
     # Mock an IHC combined downloadable file record
     ihc_record = MagicMock()
     ihc_record.object_url = "foo"
-    ihc_record.assay_type = "ihc marker combined"
+    ihc_record.upload_type = "ihc marker combined"
     ihc_record.data_format = "CSV"
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = ihc_record
@@ -162,7 +162,7 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
     # Mock a CyTOF summary downloadable file record
     cytof_record = MagicMock()
     cytof_record.object_url = "foo"
-    cytof_record.assay_type = upload_type
+    cytof_record.upload_type = upload_type
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = cytof_record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)

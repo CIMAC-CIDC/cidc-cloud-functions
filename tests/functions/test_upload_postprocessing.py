@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from cidc_api.models import AssayUploads, AssayUploadStatus
+from cidc_api.models import UploadJobs, UploadJobStatus
 
 from functions import upload_postprocessing
 
@@ -14,7 +14,7 @@ def test_manifest_preconditions(monkeypatch):
     """Ensure derive_files_from_manifest_upload blocks derivation under the expected conditions."""
     find_upload_by_id = MagicMock()
     find_upload_by_id.return_value = None  # upload record doesn't exist
-    monkeypatch.setattr("cidc_api.models.ManifestUploads.find_by_id", find_upload_by_id)
+    monkeypatch.setattr("cidc_api.models.UploadJobs.find_by_id", find_upload_by_id)
 
     with pytest.raises(Exception, match="No manifest upload record found"):
         upload_postprocessing.derive_files_from_manifest_upload(event, None)
@@ -36,18 +36,18 @@ def test_assay_or_analysis_preconditions(monkeypatch):
     """Ensure derive_files_from_assay_or_analysis_upload blocks derivation under the expected conditions."""
     find_by_id = MagicMock()
     find_by_id.return_value = None
-    monkeypatch.setattr(upload_postprocessing.AssayUploads, "find_by_id", find_by_id)
+    monkeypatch.setattr(upload_postprocessing.UploadJobs, "find_by_id", find_by_id)
 
     with pytest.raises(Exception, match="No upload record with id"):
         upload_postprocessing.derive_files_from_assay_or_analysis_upload(event, None)
 
-    find_by_id.return_value = AssayUploads(
-        trial_id="foo", status=AssayUploadStatus.MERGE_FAILED.value
+    find_by_id.return_value = UploadJobs(
+        trial_id="foo", status=UploadJobStatus.MERGE_FAILED.value
     )
     with pytest.raises(Exception, match="status is merge-failed"):
         upload_postprocessing.derive_files_from_assay_or_analysis_upload(event, None)
 
-    find_by_id.return_value.status = AssayUploadStatus.MERGE_COMPLETED.value
+    find_by_id.return_value.status = UploadJobStatus.MERGE_COMPLETED.value
 
     # Ensure that file derivation happens so long as upload record exists
     _derive_files = MagicMock()
