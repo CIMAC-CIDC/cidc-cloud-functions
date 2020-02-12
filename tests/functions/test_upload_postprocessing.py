@@ -67,6 +67,7 @@ def test_derive_files_from_upload(monkeypatch):
     )
 
     create_from_blob = MagicMock()
+    create_from_blob.return_value = downloadable_file = MagicMock()
     monkeypatch.setattr(
         upload_postprocessing.DownloadableFiles, "create_from_blob", create_from_blob
     )
@@ -90,3 +91,4 @@ def test_derive_files_from_upload(monkeypatch):
     create_from_blob.assert_called()
     session.commit.assert_called()
     assert blob in create_from_blob.call_args[0]
+    assert downloadable_file.analysis_friendly is True
