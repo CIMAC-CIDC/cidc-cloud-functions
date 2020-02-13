@@ -1,5 +1,6 @@
+import json
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from functions import auth0
 
@@ -41,6 +42,35 @@ def test_store_auth0_logs(monkeypatch):
     auth0.store_auth0_logs()
     send_logs.assert_called_once_with(logs)
     save_logs.assert_called_once_with(logs)
+
+
+def test_save_new_auth0_logs(monkeypatch):
+    """Test that saving logs to GCS works as expected"""
+    logs_group_1 = [
+        {"_id": 1, "date": "2020-02-13T00:00:01.0Z"},
+        {"_id": 2, "date": "2020-02-13T00:00:02.0Z"},
+        {"_id": 3, "date": "2020-02-13T00:00:03.0Z"},
+    ]
+    logs_group_2 = [
+        {"_id": 4, "date": "2020-02-14T00:00:04.0Z"},
+        {"_id": 5, "date": "2020-02-14T00:00:05.0Z"},
+        {"_id": 6, "date": "2020-02-14T00:00:06.0Z"},
+    ]
+    logs = logs_group_1 + logs_group_2
+
+    _get_log_bucket = MagicMock()
+    bucket = MagicMock()
+    blob = MagicMock()
+    bucket.blob.return_value = blob
+    _get_log_bucket.return_value = bucket
+    monkeypatch.setattr(auth0, "_get_log_bucket", _get_log_bucket)
+
+    auth0._save_new_auth0_logs(logs)
+
+    assert call("auth0/2020/02/13/00:00:03.json") in bucket.blob.call_args_list
+    assert call("auth0/2020/02/14/00:00:06.json") in bucket.blob.call_args_list
+    assert call(json.dumps(logs_group_1)) in blob.upload_from_string.call_args_list
+    assert call(json.dumps(logs_group_2)) in blob.upload_from_string.call_args_list
 
 
 def test_get_logfile_name():

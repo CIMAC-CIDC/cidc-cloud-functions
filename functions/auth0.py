@@ -1,4 +1,5 @@
 import json
+import time
 import requests
 from datetime import datetime
 from typing import List, Optional
@@ -14,6 +15,9 @@ from .settings import (
 )
 
 MANAGEMENT_API = f"{AUTH0_DOMAIN}/api/v2/"
+# Auth0's free tier expects no more than 2 requests/second.
+# See: https://auth0.com/docs/policies/rate-limits
+TIME_BETWEEN_REQUESTS = 0.5
 LAST_LOG_ID = "auth0/__last_log_id.txt"
 
 
@@ -126,6 +130,9 @@ def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
         logs.extend(new_logs)
         log_id = new_logs[-1]["_id"]
 
+        # Throttle our requests to the Auth0 API
+        time.sleep(TIME_BETWEEN_REQUESTS)
+
     print(f"Collected {len(logs)} logs in total.")
 
     return logs
@@ -145,37 +152,49 @@ def _send_new_auth0_logs_to_stackdriver(logs: List[dict]):
     """Log each new log to stackdriver for easy inspection"""
     logger = _get_stackdriver_logger()
 
-    for log in logs:
-        ts = datetime.strptime(log["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    with logger.batch() as batch_logger:
+        for log in logs:
+            ts = datetime.strptime(log["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
-        event_type = log["type"]
-        user_agent = log["user_agent"]
-        user_name = log.get("user_name")
+            event_type = log["type"]
+            user_agent = log["user_agent"]
+            user_name = log.get("user_name")
 
-        # Depending on the event type, auth0 won't provide user
-        # profile information, so we handle that here.
-        if not user_name:
-            user_name = AUTH0_CODES_TO_USER_STR.get(event_type, "[none]")
+            # Depending on the event type, auth0 won't provide user
+            # profile information, so we handle that here.
+            if not user_name:
+                user_name = AUTH0_CODES_TO_USER_STR.get(event_type, "[none]")
 
-        extra_fields = {
-            "__source": "auth0",
-            "message": (
-                f"(EVENT={event_type})\t"
-                f"(USER={user_name})\t"
-                f"(USER_AGENT={user_agent})"
-            ),
-        }
-        logger.log_struct({**log, **extra_fields}, timestamp=ts)
+            extra_fields = {
+                "__source": "auth0",
+                "message": (
+                    f"(EVENT={event_type})\t"
+                    f"(USER={user_name})\t"
+                    f"(USER_AGENT={user_agent})"
+                ),
+            }
+            batch_logger.log_struct({**log, **extra_fields}, timestamp=ts)
 
 
 def _save_new_auth0_logs(logs: List[dict]) -> str:
     """Save a list of access log objects from Auth0 to GCS"""
-    log_bucket = _get_log_bucket()
+    # If a log ingestion fails one night, we might have logs for multiple days.
+    # If so, we want to save those logs in separate GCS sub-buckets for each day.
+    logs_by_date = {}
+    for log in logs:
+        date = datetime.strptime(log["date"], "%Y-%m-%dT%H:%M:%S.%fZ").date()
+        logs_by_date[date] = logs_by_date.get(date, []) + [log]
 
-    # Save new logs to a blob in GCS.
-    logs_blob_name = f"{_get_logfile_name()}.json"
-    logs_blob = log_bucket.blob(f"auth0/{logs_blob_name}")
-    logs_blob.upload_from_string(json.dumps(logs))
+    for date, daily_logs in logs_by_date.items():
+        print(f"Saving Auth0 logs for {date} to GCS.")
+
+        log_bucket = _get_log_bucket()
+
+        # Save new logs to a blob in GCS.
+        last_ts = datetime.strptime(daily_logs[-1]["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        logs_blob_name = f"{_get_logfile_name(last_ts)}.json"
+        logs_blob = log_bucket.blob(f"auth0/{logs_blob_name}")
+        logs_blob.upload_from_string(json.dumps(daily_logs))
 
     # Save the id of the most recent log in the collection.
     log_id = logs[-1]["_id"]
