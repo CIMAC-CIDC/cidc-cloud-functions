@@ -44,6 +44,43 @@ def test_store_auth0_logs(monkeypatch):
     save_logs.assert_called_once_with(logs)
 
 
+def test_get_last_auth0_log_id(monkeypatch):
+    """Test getting last log id"""
+
+    _get_log_bucket = MagicMock()
+    bucket = MagicMock()
+    get_blob = MagicMock()
+    bucket.get_blob.return_value = get_blob
+    list_blobs = MagicMock()
+    bucket.list_blobs.return_value = list_blobs
+    _get_log_bucket.return_value = bucket
+    monkeypatch.setattr(auth0, "_get_log_bucket", _get_log_bucket)
+
+    auth0._get_last_auth0_log_id()
+
+    assert call(prefix="auth0/__last_log_id/") in bucket.list_blobs.call_args_list
+    # falls back to old way
+    assert call("auth0/__last_log_id.txt") in bucket.get_blob.call_args_list
+
+    bucket.list_blobs.reset_mock()
+    bucket.get_blob.reset_mock()
+
+    # new setup - two old log id record
+    last_logid = MagicMock()
+    last_logid.name = "auth0/__last_log_id/2020/01/02__last_log_id.txt"
+    last_logid.download_as_string.return_value = b"123"
+    prev_logid = MagicMock()
+    prev_logid.name = "auth0/__last_log_id/2020/01/01__last_log_id.txt"
+    bucket.list_blobs.return_value = [last_logid]
+
+    assert "123" == auth0._get_last_auth0_log_id()
+
+    assert call(prefix="auth0/__last_log_id/") in bucket.list_blobs.call_args_list
+    last_logid.download_as_string.assert_called_once()
+    # doesn't fall back to old way
+    assert not bucket.get_blob.call_args_list
+
+
 def test_save_new_auth0_logs(monkeypatch):
     """Test that saving logs to GCS works as expected"""
     logs_group_1 = [

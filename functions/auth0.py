@@ -19,6 +19,7 @@ MANAGEMENT_API = f"{AUTH0_DOMAIN}/api/v2/"
 # See: https://auth0.com/docs/policies/rate-limits
 TIME_BETWEEN_REQUESTS = 0.5
 LAST_LOG_ID = "auth0/__last_log_id.txt"
+LAST_LOG_ID_DIR = "auth0/__last_log_id/"
 
 
 def store_auth0_logs(*args):
@@ -88,11 +89,32 @@ def _get_log_bucket():
 
 def _get_last_auth0_log_id() -> Optional[str]:
     """Fetch that ID of the last access log imported from Auth0"""
-    blob = _get_log_bucket().get_blob(LAST_LOG_ID)
-    if blob:
-        return blob.download_as_string().decode("utf-8")
+    bucket = _get_log_bucket()
+    blobs = bucket.list_blobs(prefix=LAST_LOG_ID_DIR)
+
+    last_blob = None
+
+    for blob in blobs:
+        if not last_blob:
+            last_blob = blob
+            continue
+
+        if blob.name > last_blob.name:
+            last_blob = blob 
+
+    if not last_blob:
+        # fallback to the old way
+        last_blob = bucket.get_blob(LAST_LOG_ID) 
+
+    if last_blob:
+        return last_blob.download_as_string().decode("utf-8")
     return None
 
+def _get_new_last_auth0_log_id_blob_name():
+    """Gets new blob to store the last access log id imported from Auth0"""
+
+    return LAST_LOG_ID_DIR+datetime.now().isoformat().replace('-','/') #slash to have sub-dirs
+    
 
 def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
     """Get all new access logs since `log_id`"""
@@ -198,7 +220,7 @@ def _save_new_auth0_logs(logs: List[dict]) -> str:
 
     # Save the id of the most recent log in the collection.
     log_id = logs[-1]["_id"]
-    id_blob = log_bucket.blob(LAST_LOG_ID)
+    id_blob = log_bucket.blob(_get_new_last_auth0_log_id_blob_name())
     id_blob.upload_from_string(log_id)
 
     return f"gs://{logs_blob.bucket.name}/{logs_blob.name}"
