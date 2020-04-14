@@ -100,21 +100,24 @@ def _get_last_auth0_log_id() -> Optional[str]:
             continue
 
         if blob.name > last_blob.name:
-            last_blob = blob 
+            last_blob = blob
 
     if not last_blob:
         # fallback to the old way
-        last_blob = bucket.get_blob(LAST_LOG_ID) 
+        last_blob = bucket.get_blob(LAST_LOG_ID)
 
     if last_blob:
         return last_blob.download_as_string().decode("utf-8")
     return None
 
+
 def _get_new_last_auth0_log_id_blob_name():
     """Gets new blob to store the last access log id imported from Auth0"""
 
-    return LAST_LOG_ID_DIR+datetime.now().isoformat().replace('-','/') #slash to have sub-dirs
-    
+    return LAST_LOG_ID_DIR + datetime.now().isoformat().replace(
+        "-", "/"
+    )  # slash to have sub-dirs
+
 
 def _get_new_auth0_logs(token: str, log_id: Optional[str]) -> List[dict]:
     """Get all new access logs since `log_id`"""
