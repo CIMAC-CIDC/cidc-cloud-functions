@@ -96,10 +96,16 @@ def _get_last_auth0_log_id() -> Optional[str]:
 
     # taking alphabetically last blob, because they are named with iso formatted dates,
     # (see _get_new_last_auth0_log_id_blob_name) thus we need the last one
-    last_blob = max(blobs, key=lambda b: b.name) if blobs else None
+    for blob in blobs:
+        if not last_blob:
+            last_blob = blob
+            continue
+
+        if blob.name >= last_blob.name:
+            last_blob = blob
 
     if not last_blob:
-        # fallback to the old way
+        # fall back to the old way
         last_blob = bucket.get_blob(LAST_LOG_ID)
 
     if last_blob:
