@@ -51,8 +51,7 @@ def test_get_last_auth0_log_id(monkeypatch):
     bucket = MagicMock()
     get_blob = MagicMock()
     bucket.get_blob.return_value = get_blob
-    list_blobs = MagicMock()
-    bucket.list_blobs.return_value = list_blobs
+    bucket.list_blobs.return_value = []
     _get_log_bucket.return_value = bucket
     monkeypatch.setattr(auth0, "_get_log_bucket", _get_log_bucket)
 
@@ -71,7 +70,7 @@ def test_get_last_auth0_log_id(monkeypatch):
     last_logid.download_as_string.return_value = b"123"
     prev_logid = MagicMock()
     prev_logid.name = "auth0/__last_log_id/2020/01/01__last_log_id.txt"
-    bucket.list_blobs.return_value = [last_logid]
+    bucket.list_blobs.return_value = [prev_logid, last_logid, prev_logid]
 
     assert "123" == auth0._get_last_auth0_log_id()
 
