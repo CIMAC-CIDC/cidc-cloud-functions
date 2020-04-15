@@ -94,13 +94,9 @@ def _get_last_auth0_log_id() -> Optional[str]:
 
     last_blob = None
 
-    for blob in blobs:
-        if not last_blob:
-            last_blob = blob
-            continue
-
-        if blob.name > last_blob.name:
-            last_blob = blob
+    # taking alphabetically last blob, because they are named with iso formatted dates, 
+    # (see _get_new_last_auth0_log_id_blob_name) thus we need the last one
+    last_blob = max(blobs, key=lambda b: b.name) if blobs else None
 
     if not last_blob:
         # fallback to the old way
