@@ -90,7 +90,7 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
             artifact.data_format,
             blob,
             session=session,
-            publish_artifact_upload=True,
+            alert_artifact_upload=True,
         )
         df_record.additional_metadata = artifact.metadata
         # Assume that a derived file will be directly useful for data analysis
