@@ -2,7 +2,7 @@
 import os
 import json
 
-from cidc_api.config import get_sqlalchemy_database_uri, get_secret_manager
+from cidc_api.config import get_sqlalchemy_database_uri, get_secrets_manager
 
 
 # Cloud Functions provide the current GCP project id
@@ -18,7 +18,7 @@ if not GCP_PROJECT:
 
 TESTING = os.environ.get("TESTING")
 FLASK_ENV = os.environ.get("FLASK_ENV")
-secrets = get_secret_manager(TESTING)
+secrets = get_secrets_manager(TESTING)
 
 # GCP config
 SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)

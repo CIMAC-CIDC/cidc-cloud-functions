@@ -14,7 +14,7 @@ from cidc_api.models import (
     UploadJobStatus,
     prism,
 )
-from cidc_api.gcloud_client import publish_artifact_upload, _encode_and_publish
+from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
 
 from .settings import (
     FLASK_ENV,
