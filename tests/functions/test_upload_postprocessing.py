@@ -41,13 +41,13 @@ def test_assay_or_analysis_preconditions(monkeypatch):
     with pytest.raises(Exception, match="No upload record with id"):
         upload_postprocessing.derive_files_from_assay_or_analysis_upload(event, None)
 
-    find_by_id.return_value = UploadJobs(
-        trial_id="foo", status=UploadJobStatus.MERGE_FAILED.value
-    )
+    find_by_id.return_value = upload_job = UploadJobs(trial_id="foo")
+    upload_job._set_status_no_validation(UploadJobStatus.MERGE_FAILED.value)
+
     with pytest.raises(Exception, match="status is merge-failed"):
         upload_postprocessing.derive_files_from_assay_or_analysis_upload(event, None)
 
-    find_by_id.return_value.status = UploadJobStatus.MERGE_COMPLETED.value
+    upload_job._set_status_no_validation(UploadJobStatus.MERGE_COMPLETED.value)
 
     # Ensure that file derivation happens so long as upload record exists
     _derive_files = MagicMock()
