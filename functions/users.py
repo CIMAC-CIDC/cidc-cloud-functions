@@ -10,5 +10,5 @@ def disable_inactive_users(*args):
     """Disable any users who have become inactive."""
     with sqlalchemy_session() as session:
         print("Disabling inactive users...")
-        Users.disable_inactive_users(session=True)
+        Users.disable_inactive_users(session=session)
         print("done.")
