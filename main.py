@@ -7,6 +7,7 @@ from functions import (
     vis_preprocessing,
     derive_files_from_manifest_upload,
     derive_files_from_assay_or_analysis_upload,
+    disable_inactive_users,
 )
 
 from flask import Flask, request, jsonify
@@ -18,7 +19,7 @@ topics_to_functions = {
     "artifact_upload": vis_preprocessing,
     "patient_sample_update": derive_files_from_manifest_upload,
     "assay_or_analysis_upload": derive_files_from_assay_or_analysis_upload,
-    "daily_cron": store_auth0_logs,
+    "daily_cron": [store_auth0_logs, disable_inactive_users],
     "emails": send_email,
 }
 
@@ -28,7 +29,12 @@ def trigger_pubsub_function(topic):
     print(f"topic {topic} received message: {request}")
     data = request.form
     print(f"with data: {data}")
-    topics_to_functions[topic](data, {})
+    func = topics_to_functions[topic]
+    if isinstance(func, list):
+        for f in func:
+            f(data, {})
+    else:
+        func(data, {})
     return jsonify(success=True)
 
 
