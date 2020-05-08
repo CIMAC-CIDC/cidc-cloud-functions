@@ -14,7 +14,10 @@ from cidc_api.models import (
 
 from functions import uploads
 from functions.uploads import ingest_upload, saved_failure_status
-from functions.settings import GOOGLE_DATA_BUCKET
+from functions.settings import (
+    GOOGLE_DATA_BUCKET,
+    GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
+)
 
 from tests.util import make_pubsub_event, with_app_context
 
@@ -162,8 +165,15 @@ def test_ingest_upload(capsys, monkeypatch):
     assert _policy.bindings[0]["members"] == ["group:analysis-group@email"]
     assert _policy.bindings[0]["role"] == "roles/storage.legacyObjectReader"
     assert (
-        _policy.bindings[0]["condition"]["expression"]
-        == f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes")'
+        f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes")'
+        in _policy.bindings[0]["condition"]["expression"]
+    )
+    _until = datetime.datetime.today() + datetime.timedelta(
+        GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS
+    )
+    assert (
+        f'request.time < timestamp("{_until.date().isoformat()}T00:00:00")'
+        in _policy.bindings[0]["condition"]["expression"]
     )
 
     # Check that the job status was updated to reflect a successful upload

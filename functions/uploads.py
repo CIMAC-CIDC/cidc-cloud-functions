@@ -3,7 +3,7 @@ from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from typing import Optional, Tuple
 from os import environ
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import jsonify
 from google.cloud import storage
@@ -23,6 +23,7 @@ from .settings import (
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
     GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC,
+    GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
 )
 from .util import (
     BackgroundContext,
@@ -195,6 +196,14 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     policy.version = 3
 
     cleaned_prefix = prefix.replace('"', '\\"').lstrip("/")
+    grant_until_date = (
+        (datetime.now() + timedelta(GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS))
+        .date()
+        .isoformat()
+    )
+
+    prefixCheck = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}")'
+    expiryCheck = f'request.time < timestamp("{grant_until_date}T00:00:00")'
 
     # following https://github.com/GoogleCloudPlatform/python-docs-samples/pull/2730/files
     policy.bindings.append(
@@ -202,9 +211,9 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
             "role": GOOGLE_ANALYSIS_GROUP_ROLE,
             "members": ["group:" + group_email],
             "condition": {
-                "title": f"Biofx analysis {prefix}",
+                "title": f"Biofx analysis {prefix} on {datetime.now()}",
                 "description": "Auto-assigned from cidc-cloud-functions/uploads",
-                "expression": f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}")',
+                "expression": f"{prefixCheck} && {expiryCheck}",
             },
         }
     )
