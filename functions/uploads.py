@@ -176,21 +176,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
     return jsonify(dict(url_mapping))
 
 
-class _GCSBucketPolicyV3WithConditions:
-    """
-    A work-around class for python gcloud client not able to add conditional policies.
-    
-    `bucket_obj.set_iam_policy(policy_obj)` uses only `policy_obj.to_api_repr` 
-    thus we override only it.
-    """
-
-    def __init__(self, json):
-        self._json = json
-
-    def to_api_repr(self):
-        return self._json
-
-
 def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     """
     Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
@@ -201,36 +186,30 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     )
 
     storage_client = storage.Client()
-    # Work-around for python gcloud client not able to get v3 policies:
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
-    policy_json = storage_client._connection.api_request(
-        method="GET",
-        path=f"/b/{GOOGLE_DATA_BUCKET}/iam",
-        query_params={"optionsRequestedPolicyVersion": 3},
-        _target_object=None,
-    )
 
-    # Work-around for python gcloud client not able to set v3 policies with conditions:
-    # We're adding them directly to the JSON request to API
+    # get v3 policy to use condition in bindings
+    policy = bucket.get_iam_policy(requested_policy_version=3)
+
+    # Set the policy's version to 3 to use condition in bindings.
+    policy.version = 3
+
     cleaned_prefix = prefix.replace('"', '\\"').lstrip("/")
-    # following https://cloud.google.com/iam/docs/reference/rest/v1/Policy
-    policy_json["bindings"].append(
+
+    # following https://github.com/GoogleCloudPlatform/python-docs-samples/pull/2730/files
+    policy.bindings.append(
         {
             "role": GOOGLE_ANALYSIS_GROUP_ROLE,
             "members": ["group:" + group_email],
             "condition": {
+                "title": f"Biofx analysis {prefix}",
                 "description": "Auto-assigned from cidc-cloud-functions/uploads",
                 "expression": f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}")',
-                "title": f"Biofx analysis {prefix}",
             },
         }
     )
-    # TODO MAYBE FIX - is appending a policy idempotent in the Cloud backend?
-    # Or do we need to check and not add again / regularly clean?
 
-    # Work-around for python gcloud client not able to add v3 policies with conditions
-    policy_json["version"] = 3  # required to use conditions
-    bucket.set_iam_policy(_GCSBucketPolicyV3WithConditions(policy_json))
+    bucket.set_iam_policy(policy)
 
 
 def _gcs_copy(
