@@ -113,21 +113,24 @@ def test_ingest_upload(capsys, monkeypatch):
     _api_request.return_value = {"bindings": []}
 
     _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
+    _bucket.get_iam_policy = _get_iam_policy = MagicMock("_bucket.get_iam_policy")
+    _policy = _get_iam_policy.return_value = MagicMock("_policy")
+    _policy.bindings = []
 
     # Mock metadata merging functionality
-    _save_file = MagicMock()
+    _save_file = MagicMock("_save_file")
     monkeypatch.setattr(DownloadableFiles, "create_from_metadata", _save_file)
 
-    _save_blob_file = MagicMock()
+    _save_blob_file = MagicMock("_save_blob_file")
     monkeypatch.setattr(DownloadableFiles, "create_from_blob", _save_blob_file)
 
-    _merge_metadata = MagicMock()
+    _merge_metadata = MagicMock("_merge_metadata")
     monkeypatch.setattr(TrialMetadata, "patch_assays", _merge_metadata)
 
-    publish_artifact_upload = MagicMock()
+    publish_artifact_upload = MagicMock("publish_artifact_upload")
     monkeypatch.setattr(uploads, "publish_artifact_upload", publish_artifact_upload)
 
-    _encode_and_publish = MagicMock()
+    _encode_and_publish = MagicMock("_encode_and_publish")
     monkeypatch.setattr(uploads, "_encode_and_publish", _encode_and_publish)
 
     successful_upload_event = make_pubsub_event(str(job.id))
@@ -154,10 +157,14 @@ def test_ingest_upload(capsys, monkeypatch):
     # Check that we tried to update GCS access policy
     _set_iam_policy.assert_called_once()
     # Check that we aded GCS access for biofx team
-    policy = _set_iam_policy.call_args[0][0].to_api_repr()
-    assert ("group:analysis-group@email", "roles/storage.legacyObjectReader") in [
-        (b["members"][0], b["role"]) for b in policy["bindings"]
-    ]
+    assert _policy == _set_iam_policy.call_args[0][0]
+    assert len(_policy.bindings) == 1
+    assert _policy.bindings[0]["members"] == ["group:analysis-group@email"]
+    assert _policy.bindings[0]["role"] == "roles/storage.legacyObjectReader"
+    assert (
+        _policy.bindings[0]["condition"]["expression"]
+        == f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes")'
+    )
 
     # Check that the job status was updated to reflect a successful upload
     assert job.status == UploadJobStatus.MERGE_COMPLETED.value
