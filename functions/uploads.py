@@ -194,7 +194,6 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     # Set the policy's version to 3 to use condition in bindings.
     policy.version = 3
 
-   
     cleaned_prefix = prefix.replace('"', '\\"').lstrip("/")
 
     # following https://github.com/GoogleCloudPlatform/python-docs-samples/pull/2730/files
