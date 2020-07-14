@@ -12,5 +12,5 @@ def disable_inactive_users(*args):
         print("Disabling inactive users...")
         disabled = Users.disable_inactive_users(session=session)
         for u in disabled:
-            print(f"Disabled inactive: {u[0]}") 
+            print(f"Disabled inactive: {u[0]}")
         print("done.")
