@@ -11,5 +11,6 @@ def disable_inactive_users(*args):
     with sqlalchemy_session() as session:
         print("Disabling inactive users...")
         disabled = Users.disable_inactive_users(session=session)
-        print("Disabled:", ", ".join([u[0] for u in disabled]) 
+        for u in disabled:
+            print(f"Disabled inactive: {u[0]}") 
         print("done.")
