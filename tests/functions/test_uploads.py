@@ -163,16 +163,16 @@ def test_ingest_upload(capsys, monkeypatch):
     assert _policy == _set_iam_policy.call_args[0][0]
     assert len(_policy.bindings) == 1
     assert _policy.bindings[0]["members"] == ["group:analysis-group@email"]
-    assert _policy.bindings[0]["role"] == "roles/storage.legacyObjectReader"
+    assert _policy.bindings[0]["role"] == "projects/cidc-dfci/roles/CIDC_biofx"
     assert (
-        f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes")'
+        f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes/")'
         in _policy.bindings[0]["condition"]["expression"]
     )
     _until = datetime.datetime.today() + datetime.timedelta(
         GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS
     )
     assert (
-        f'request.time < timestamp("{_until.date().isoformat()}T00:00:00")'
+        f'request.time < timestamp("{_until.date().isoformat()}T00:00:00Z")'
         in _policy.bindings[0]["condition"]["expression"]
     )
 

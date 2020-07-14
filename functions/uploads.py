@@ -202,8 +202,8 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
         .isoformat()
     )
 
-    prefixCheck = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}")'
-    expiryCheck = f'request.time < timestamp("{grant_until_date}T00:00:00")'
+    prefixCheck = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}/")'
+    expiryCheck = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
 
     # following https://github.com/GoogleCloudPlatform/python-docs-samples/pull/2730/files
     policy.bindings.append(
@@ -211,8 +211,8 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
             "role": GOOGLE_ANALYSIS_GROUP_ROLE,
             "members": ["group:" + group_email],
             "condition": {
-                "title": f"Biofx analysis {prefix} on {datetime.now()}",
-                "description": "Auto-assigned from cidc-cloud-functions/uploads",
+                "title": f"Biofx {prefix} until {grant_until_date}",
+                "description": f"Auto-assigned from cidc-cloud-functions/uploads on {datetime.now()}",
                 "expression": f"{prefixCheck} && {expiryCheck}",
             },
         }
