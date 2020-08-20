@@ -83,11 +83,15 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
         # Save to GCS
         blob = upload_to_data_bucket(artifact.object_url, artifact.data)
 
+        # Build basic facet group
+        facet_group = f"{artifact.data_format}|{artifact.file_type}"
+
         # Save to database
         df_record = DownloadableFiles.create_from_blob(
             trial_record.trial_id,
             artifact.file_type,
             artifact.data_format,
+            facet_group,
             blob,
             session=session,
             alert_artifact_upload=True,
