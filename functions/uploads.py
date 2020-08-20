@@ -144,9 +144,16 @@ def ingest_upload(event: dict, context: BackgroundContext):
         with saved_failure_status(job, session):
             _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
             full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
+            data_format = "Assay Metadata"
+            facet_group = f"{job.upload_type}|{data_format}"
             print(f"Saving {full_uri} as a downloadable_file.")
             DownloadableFiles.create_from_blob(
-                trial_id, job.upload_type, "Assay Metadata", xlsx_blob, session=session
+                trial_id,
+                job.upload_type,
+                data_format,
+                facet_group,
+                xlsx_blob,
+                session=session,
             )
 
         # Update the job metadata to include artifacts

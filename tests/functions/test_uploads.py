@@ -155,6 +155,7 @@ def test_ingest_upload(capsys, monkeypatch):
         "CIMAC-12345",
         "wes_bam",
         "Assay Metadata",
+        "wes_bam|Assay Metadata",
         xlsx_blob,
     )
     # Check that we tried to update GCS access policy
