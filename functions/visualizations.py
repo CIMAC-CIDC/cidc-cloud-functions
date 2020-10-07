@@ -30,13 +30,11 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         if not file_record:
             raise Exception(f"No downloadable file with object URL {object_url} found.")
 
-        metadata_df = _get_metadata_df(file_record.trial_id)
 
         # Apply the transformations and get derivative data for visualization.
         for transform_name, transform in _get_transforms().items():
-            vis_json = transform(file_record, metadata_df)
-            if vis_json:
-                # Add the vis config to the file_record
+            vis_json = transform(file_record)
+            if vis_json: # Add the vis config to the file_record
                 setattr(file_record, transform_name, vis_json)
 
         # Save the derivative data additions to the database.
@@ -75,14 +73,12 @@ def _get_transforms() -> dict:
     a JSON blob that the frontend will use for visualization.
     """
     return {
-        "clustergrammer": _ClustergrammerTransform(),
+        "clustergrammer": _clustergrammer_transform,
         "ihc_combined_plot": _ihc_combined_transform,
     }
 
 
-def _ihc_combined_transform(
-    file_record: DownloadableFiles, metadata_df: pd.DataFrame
-) -> Optional[dict]:
+def _ihc_combined_transform(file_record: DownloadableFiles) -> Optional[dict]:
     """
     Prepare an IHC combined file for visualization by joining it with relevant metadata
     """
@@ -90,6 +86,9 @@ def _ihc_combined_transform(
         return None
 
     assert file_record.data_format.lower() == "csv"
+
+    data_file = get_blob_as_stream(file_record.object_url)
+    metadata_df = _get_metadata_df(file_record.trial_id)
 
     print(f"Generating IHC combined visualization config for file {file_record.id}")
     data_file = get_blob_as_stream(file_record.object_url)
@@ -100,48 +99,28 @@ def _ihc_combined_transform(
     return json.loads(full_df.to_json(orient="records"))
 
 
-class _ClustergrammerTransform:
-    def __call__(
-        self, file_record: DownloadableFiles, metadata_df: pd.DataFrame
-    ) -> Optional[dict]:
+def _clustergrammer_transform(file_record: DownloadableFiles) -> Optional[dict]:
         """
         Prepare the data file for visualization in clustergrammer. 
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
-        if file_record.data_format.lower() == "npx":
-            data_file = get_blob_as_stream(file_record.object_url)
-            return self.npx(data_file, metadata_df)
-        elif file_record.upload_type.lower() in (
+        if file_record.data_format.lower() not in (
+            "npx",
             "cell counts compartment",
             "cell counts assignment",
             "cell counts profiling",
         ):
-            data_file = get_blob_as_stream(file_record.object_url)
-            return self.cytof_summary(data_file, metadata_df)
+            return None
 
-        return None
+        file_blob = get_blob_as_stream(file_record.object_url)
+        metadata_df = _get_metadata_df(file_record.trial_id)
 
-    def npx(self, data_file, metadata_df: pd.DataFrame) -> dict:
-        """Prepare an NPX file for visualization in clustergrammer"""
-        # Load the NPX data into a dataframe.
-        npx_df = _npx_to_dataframe(data_file)
+        if file_record.data_format.lower() == "npx":
+            data_df = _npx_to_dataframe(file_blob)
+        else:
+            data_df = _cytof_summary_to_dataframe(file_blob)        
 
-        return self._clustergrammerify(npx_df, metadata_df)
-
-    def cytof_summary(self, data_file, metadata_df: pd.DataFrame) -> dict:
-        """Prepare CyTOF summary csv for visualization in clustergrammer"""
-        # Load the CyTOF summary data into a dataframe
-        cytof_df = _cytof_summary_to_dataframe(data_file)
-        return self._clustergrammerify(cytof_df, metadata_df)
-
-    def _clustergrammerify(
-        self, data_df: pd.DataFrame, metadata_df: pd.DataFrame
-    ) -> dict:
-        """
-        Produce the clustergrammer config for the given data and metadata dfs.
-        `data_df` must be a dataframe with CIMAC ID column headers.
-        """
         assert (
             data_df.shape[1] > 1
         ), "Cannot generate clustergrammer visualization for data with only one sample."

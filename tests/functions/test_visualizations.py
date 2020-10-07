@@ -9,7 +9,6 @@ import functions.visualizations
 from functions.visualizations import (
     vis_preprocessing,
     DownloadableFiles,
-    _ClustergrammerTransform,
     _cytof_summary_to_dataframe,
     _npx_to_dataframe,
 )
@@ -110,6 +109,28 @@ def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
     ]
 
 
+def test_cytof_to_dataframe():
+    """Extract data from a CyTOF summary CSV"""
+    with open(CYTOF_PATH, "rb") as fake_cytof:
+        cytof_df = _cytof_summary_to_dataframe(fake_cytof)
+
+    expected_df = pd.DataFrame(
+        {"CTTTTPPS1.01": [1, 2], "CTTTTPPS2.01": [2, 1]}, index=["cell1", "cell2"]
+    )
+    assert expected_df.equals(cytof_df)
+
+
+def test_npx_to_dataframe():
+    """Extract data from a fake NPX file"""
+    with open(NPX_PATH, "rb") as fake_npx:
+        npx_df = _npx_to_dataframe(fake_npx)
+
+    expected_df = pd.DataFrame(
+        {"CTTTTPPS1.01": [1, -1], "CTTTTPPS2.01": [-1, 1]}, index=["Assay1", "Assay2"]
+    )
+    assert expected_df.equals(npx_df)
+
+
 def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
     """Test the NPX-clustergrammer transform."""
     # Test no file found
@@ -167,6 +188,15 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
         ("CIMAC Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
     ]
 
+
+    # Mock _npx_to_dataframe to only return one sample and check that raises
+    _npx_to_dataframe = MagicMock()
+    _npx_to_dataframe.return_value = pd.DataFrame({"CTTTPPS1.01": [1]}, index=["row1"])
+    monkeypatch.setattr(functions.visualizations, "_npx_to_dataframe", _npx_to_dataframe)
+
+    with pytest.raises(AssertionError, match="with only one sample"):
+        vis_preprocessing(make_pubsub_event("1"), {})
+
     fake_npx.close()
 
 
@@ -186,7 +216,7 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
     # Mock a CyTOF summary downloadable file record
     cytof_record = MagicMock()
     cytof_record.object_url = "foo"
-    cytof_record.upload_type = upload_type
+    cytof_record.data_format = upload_type
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = cytof_record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
@@ -232,35 +262,3 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
     ]
 
     fake_cytof.close()
-
-
-def test_cytof_to_dataframe():
-    """Extract data from a CyTOF summary CSV"""
-    with open(CYTOF_PATH, "rb") as fake_cytof:
-        cytof_df = _cytof_summary_to_dataframe(fake_cytof)
-
-    expected_df = pd.DataFrame(
-        {"CTTTTPPS1.01": [1, 2], "CTTTTPPS2.01": [2, 1]}, index=["cell1", "cell2"]
-    )
-    assert expected_df.equals(cytof_df)
-
-
-def test_npx_to_dataframe():
-    """Extract data from a fake NPX file"""
-    with open(NPX_PATH, "rb") as fake_npx:
-        npx_df = _npx_to_dataframe(fake_npx)
-
-    expected_df = pd.DataFrame(
-        {"CTTTTPPS1.01": [1, -1], "CTTTTPPS2.01": [-1, 1]}, index=["Assay1", "Assay2"]
-    )
-    assert expected_df.equals(npx_df)
-
-
-def test_clustergrammerify_single_sample(metadata_df):
-    """Ensure an assertion error gets raised if only one sample is passed to clustergrammerify"""
-    cg = _ClustergrammerTransform()
-
-    data_df = pd.DataFrame({"CTTTPPS1.01": [1]}, index=["row1"])
-
-    with pytest.raises(AssertionError, match="with only one sample"):
-        cg._clustergrammerify(data_df, metadata_df)
