@@ -36,6 +36,30 @@ def metadata_df():
     return metadata_df
 
 
+def test_loading_lazily(monkeypatch, metadata_df):
+    """Test that files aren't loaded if there are no transformations for them"""
+    record = MagicMock()
+    record.object_url = "foo"
+    record.upload_type = "something"
+    record.data_format = "CSV"
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    get_blob_as_stream = MagicMock()
+    monkeypatch.setattr(
+        functions.visualizations, "get_blob_as_stream", get_blob_as_stream
+    )
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_blob_as_stream.assert_not_called()
+
+
 def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
     """Test the IHC combined transform."""
     # Mock an IHC combined downloadable file record
