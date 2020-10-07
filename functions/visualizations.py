@@ -100,42 +100,54 @@ def _ihc_combined_transform(file_record: DownloadableFiles) -> Optional[dict]:
 
 
 def _clustergrammer_transform(file_record: DownloadableFiles) -> Optional[dict]:
-        """
+    """
         Prepare the data file for visualization in clustergrammer. 
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
-        if file_record.data_format.lower() not in (
-            "npx",
-            "cell counts compartment",
-            "cell counts assignment",
-            "cell counts profiling",
-        ):
-            return None
+    if file_record.data_format.lower() not in (
+        "npx",
+        "cell counts compartment",
+        "cell counts assignment",
+        "cell counts profiling",
+    ):
+        return None
 
-        file_blob = get_blob_as_stream(file_record.object_url)
-        metadata_df = _get_metadata_df(file_record.trial_id)
+    file_blob = get_blob_as_stream(file_record.object_url)
+    metadata_df = _get_metadata_df(file_record.trial_id)
 
-        if file_record.data_format.lower() == "npx":
-            data_df = _npx_to_dataframe(file_blob)
-        else:
-            data_df = _cytof_summary_to_dataframe(file_blob)        
+    if file_record.data_format.lower() == "npx":
+        data_df = _npx_to_dataframe(file_blob)
+    else:
+        data_df = _cytof_summary_to_dataframe(file_blob)
 
-        assert (
-            data_df.shape[1] > 1
-        ), "Cannot generate clustergrammer visualization for data with only one sample."
+    assert (
+        data_df.shape[1] > 1
+    ), "Cannot generate clustergrammer visualization for data with only one sample."
 
-        data_df.columns = _metadata_to_categories(metadata_df.loc[data_df.columns])
+    # Add category information to `data_df`'s column headers in the format
+    # that Clustergrammer expects:
+    #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
+    data_df_columns_with_categories = metadata_df.loc[data_df.columns].apply(
+        lambda row: (
+            f"CIMAC Sample ID: {row.name}",
+            f"Participant ID: {row.cimac_participant_id}",
+            f"Cohort: {row.cohort_name}",
+            f"Collection Event: {row.collection_event_name}",
+        ),
+        axis=1,
+    )
+    data_df.columns = data_df_columns_with_categories
 
-        # TODO: find a better way to handle missing values
-        data_df.fillna(0, inplace=True)
+    # TODO: find a better way to handle missing values
+    data_df.fillna(0, inplace=True)
 
-        # Produce a clustergrammer JSON blob for this dataframe.
-        net = CGNetwork()
-        net.load_df(data_df)
-        net.normalize()
-        net.cluster()
-        return net.viz
+    # Produce a clustergrammer JSON blob for this dataframe.
+    net = CGNetwork()
+    net.load_df(data_df)
+    net.normalize()
+    net.cluster()
+    return net.viz
 
 
 def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:

@@ -188,11 +188,12 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
         ("CIMAC Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
     ]
 
-
     # Mock _npx_to_dataframe to only return one sample and check that raises
     _npx_to_dataframe = MagicMock()
     _npx_to_dataframe.return_value = pd.DataFrame({"CTTTPPS1.01": [1]}, index=["row1"])
-    monkeypatch.setattr(functions.visualizations, "_npx_to_dataframe", _npx_to_dataframe)
+    monkeypatch.setattr(
+        functions.visualizations, "_npx_to_dataframe", _npx_to_dataframe
+    )
 
     with pytest.raises(AssertionError, match="with only one sample"):
         vis_preprocessing(make_pubsub_event("1"), {})
