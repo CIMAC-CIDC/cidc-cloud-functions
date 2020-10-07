@@ -100,9 +100,7 @@ def _ihc_combined_transform(
 
 class _ClustergrammerTransform:
     def __call__(
-        self,
-        file_record: DownloadableFiles,
-        metadata_df: pd.DataFrame,
+        self, file_record: DownloadableFiles, metadata_df: pd.DataFrame
     ) -> Optional[dict]:
         """
         Prepare the data file for visualization in clustergrammer. 
@@ -110,7 +108,7 @@ class _ClustergrammerTransform:
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
         if file_record.data_format.lower() == "npx":
-             data_file = get_blob_as_stream(file_record.object_url)
+            data_file = get_blob_as_stream(file_record.object_url)
             return self.npx(data_file, metadata_df)
         elif file_record.upload_type.lower() in (
             "cell counts compartment",
