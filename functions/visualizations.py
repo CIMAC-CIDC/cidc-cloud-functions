@@ -28,12 +28,11 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         if not file_record:
             raise Exception(f"No downloadable file with object URL {object_url} found.")
 
-        file_blob = get_blob_as_stream(file_record.object_url)
         metadata_df = _get_metadata_df(file_record.trial_id)
 
         # Apply the transformations and get derivative data for visualization.
         for transform_name, transform in _get_transforms().items():
-            vis_json = transform(file_blob, file_record, metadata_df)
+            vis_json = transform(file_record, metadata_df)
             if vis_json:
                 # Add the vis config to the file_record
                 setattr(file_record, transform_name, vis_json)
@@ -80,7 +79,7 @@ def _get_transforms() -> dict:
 
 
 def _ihc_combined_transform(
-    data_file: BytesIO, file_record: DownloadableFiles, metadata_df: pd.DataFrame
+    file_record: DownloadableFiles, metadata_df: pd.DataFrame
 ) -> Optional[dict]:
     """
     Prepare an IHC combined file for visualization by joining it with relevant metadata
@@ -91,6 +90,7 @@ def _ihc_combined_transform(
     assert file_record.data_format.lower() == "csv"
 
     print(f"Generating IHC combined visualization config for file {file_record.id}")
+    data_file = get_blob_as_stream(file_record.object_url)
 
     data_df = pd.read_csv(data_file)
     full_df = data_df.join(metadata_df, on="cimac_id", how="inner")
@@ -101,7 +101,6 @@ def _ihc_combined_transform(
 class _ClustergrammerTransform:
     def __call__(
         self,
-        data_file: BytesIO,
         file_record: DownloadableFiles,
         metadata_df: pd.DataFrame,
     ) -> Optional[dict]:
@@ -111,12 +110,14 @@ class _ClustergrammerTransform:
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
         if file_record.data_format.lower() == "npx":
+             data_file = get_blob_as_stream(file_record.object_url)
             return self.npx(data_file, metadata_df)
         elif file_record.upload_type.lower() in (
             "cell counts compartment",
             "cell counts assignment",
             "cell counts profiling",
         ):
+            data_file = get_blob_as_stream(file_record.object_url)
             return self.cytof_summary(data_file, metadata_df)
 
         return None
