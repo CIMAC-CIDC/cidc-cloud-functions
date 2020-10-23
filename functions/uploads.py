@@ -243,6 +243,8 @@ def _gcs_copy(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
     )
     from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
+    if from_object is None:
+        raise Exception(f"Couldn't get the GCS blob to copy: {source_object}")
     to_bucket, _ = _get_bucket_and_blob(target_bucket, None)
     to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
 
