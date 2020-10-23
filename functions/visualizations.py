@@ -30,7 +30,6 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         if not file_record:
             raise Exception(f"No downloadable file with object URL {object_url} found.")
 
-
         # Apply the transformations and get derivative data for visualization.
         for transform_name, transform in _get_transforms().items():
             vis_json = transform(file_record)
