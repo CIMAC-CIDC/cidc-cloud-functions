@@ -95,6 +95,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         pool = ThreadPool(8)
         destination_objects = pool.map(do_copy, url_mapping)
         pool.close()
+        pool.join()
 
         downloadable_files = []
         metadata_with_urls = job.metadata_patch
