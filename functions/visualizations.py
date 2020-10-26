@@ -86,11 +86,9 @@ def _ihc_combined_transform(file_record: DownloadableFiles) -> Optional[dict]:
 
     assert file_record.data_format.lower() == "csv"
 
-    data_file = get_blob_as_stream(file_record.object_url)
-    metadata_df = _get_metadata_df(file_record.trial_id)
-
     print(f"Generating IHC combined visualization config for file {file_record.id}")
     data_file = get_blob_as_stream(file_record.object_url)
+    metadata_df = _get_metadata_df(file_record.trial_id)
 
     data_df = pd.read_csv(data_file)
     full_df = data_df.join(metadata_df, on="cimac_id", how="inner")
@@ -100,10 +98,10 @@ def _ihc_combined_transform(file_record: DownloadableFiles) -> Optional[dict]:
 
 def _clustergrammer_transform(file_record: DownloadableFiles) -> Optional[dict]:
     """
-        Prepare the data file for visualization in clustergrammer. 
-        NOTE: `metadata_df` should contain data from the participants and samples CSVs
-        for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
-        """
+    Prepare the data file for visualization in clustergrammer. 
+    NOTE: `metadata_df` should contain data from the participants and samples CSVs
+    for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
+    """
     if file_record.data_format.lower() not in (
         "npx",
         "cell counts compartment",
@@ -124,17 +122,8 @@ def _clustergrammer_transform(file_record: DownloadableFiles) -> Optional[dict]:
         data_df.shape[1] > 1
     ), "Cannot generate clustergrammer visualization for data with only one sample."
 
-    # Add category information to `data_df`'s column headers in the format
-    # that Clustergrammer expects:
-    #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
-    data_df_columns_with_categories = metadata_df.loc[data_df.columns].apply(
-        lambda row: (
-            f"CIMAC Sample ID: {row.name}",
-            f"Participant ID: {row.cimac_participant_id}",
-            f"Cohort: {row.cohort_name}",
-            f"Collection Event: {row.collection_event_name}",
-        ),
-        axis=1,
+    data_df_columns_with_categories = _metadata_to_categories(
+        metadata_df.loc[data_df.columns]
     )
     data_df.columns = data_df_columns_with_categories
 
