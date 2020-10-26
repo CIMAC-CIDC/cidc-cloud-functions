@@ -17,6 +17,8 @@ from .util import (
     get_blob_as_stream,
 )
 
+CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY = 10
+
 
 def vis_preprocessing(event: dict, context: BackgroundContext):
     with sqlalchemy_session() as session:
@@ -144,19 +146,7 @@ class _ClustergrammerTransform:
             data_df.shape[1] > 1
         ), "Cannot generate clustergrammer visualization for data with only one sample."
 
-        # Add category information to `data_df`'s column headers in the format
-        # that Clustergrammer expects:
-        #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
-        data_df_columns_with_categories = metadata_df.loc[data_df.columns].apply(
-            lambda row: (
-                f"CIMAC Sample ID: {row.name}",
-                f"Participant ID: {row.cimac_participant_id}",
-                f"Cohort: {row.cohort_name}",
-                f"Collection Event: {row.collection_event_name}",
-            ),
-            axis=1,
-        )
-        data_df.columns = data_df_columns_with_categories
+        data_df.columns = _metadata_to_categories(metadata_df.loc[data_df.columns])
 
         # TODO: find a better way to handle missing values
         data_df.fillna(0, inplace=True)
@@ -167,6 +157,45 @@ class _ClustergrammerTransform:
         net.normalize()
         net.cluster()
         return net.viz
+
+
+def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
+    """
+    Add category information to `data_df`'s column headers in the format that Clustergrammer expects:
+        "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
+    """
+    metadata_df = metadata_df.dropna(
+        axis=1
+    )  # make sure we only use categories with full data
+    for c in metadata_df.columns:
+        cardinality = len(metadata_df[c].unique())
+        if cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY or cardinality <= 1:
+            if c not in [
+                "cimac_participant_id",
+                "cohort_name",
+                "collection_event_name",
+            ]:
+                metadata_df.pop(c)
+
+    ret = []
+    for idx, row in metadata_df.iterrows():
+        temp = [f"CIMAC Sample ID: {idx}"]
+
+        for cat, val in row.items():
+            cat = (
+                cat.replace("_", " ")
+                .title()
+                .replace("Cimac", "CIMAC")
+                .replace("Cidc", "CIDC")
+                .replace("Id", "ID")
+                .rsplit("Name", 1)[0]
+                .strip()
+            )
+            temp.append(f"{cat}: {val}")
+
+        ret.append(tuple(temp))
+
+    return ret
 
 
 def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
