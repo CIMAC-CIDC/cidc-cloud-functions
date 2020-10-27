@@ -348,4 +348,3 @@ def test_metadata_to_categories():
     
     # others test lack of combination with <= 3 columns after filtering
     # others test always keep 'Cohort' and 'Collection Event'
->>>>>>> Stashed changes
