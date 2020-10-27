@@ -17,7 +17,9 @@ from .util import (
     get_blob_as_stream,
 )
 
-CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY = 10
+# sets the maximum number of divisions within a category
+## that is shown on the top of the clustergrammer
+CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY = 5
 
 
 def vis_preprocessing(event: dict, context: BackgroundContext):
@@ -164,38 +166,109 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     Add category information to `data_df`'s column headers in the format that Clustergrammer expects:
         "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
     """
-    metadata_df = metadata_df.dropna(
-        axis=1
-    )  # make sure we only use categories with full data
+    metadata_df = metadata_df.copy() # so don't modify original
+
+    # go through and check cardinality = # unique
     for c in metadata_df.columns:
         cardinality = len(metadata_df[c].unique())
-        if cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY or cardinality <= 1:
+        if cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY or cardinality <= 1 or cardinality == metadata_df.shape[0]:
+            # only want if not all the same, not too many, and not each unique to sample
+
             if c not in [
                 "cimac_participant_id",
                 "cohort_name",
                 "collection_event_name",
             ]:
+                # we want to keep the above no matter what
                 metadata_df.pop(c)
+                continue
 
-    ret = []
-    for idx, row in metadata_df.iterrows():
-        temp = [f"CIMAC Sample ID: {idx}"]
+        if "protocol_identifier" in c or c in ["participant_id"]:
+            # always duplicates because of structure of samples.csv and participants.csv
+            metadata_df.pop(c)
+            continue
 
-        for cat, val in row.items():
+        if "(1=Yes,0=No)" in c:
+            # these are boolean! let's treat them that way
+            metadata_df[c] = metadata_df[c].astype(bool)
+
+    # rename the columns to pretty things
+    columns = []
+    for cat in metadata_df.columns:
+
+        if cat.startswith("arbitrary_trial_specific_clinical_annotations."):
+            # for 10021 participants.csv:
+            ## remove the prefix
+            ## remove any parentheses
+
+            cat = cat[46:]
+            if '(' in cat and ')' in cat and cat.index(')') > cat.index('('):
+                cat = cat.split('(',1)[0] + cat.rsplit(')',1)[1]
+        else:
+            # otherwise
+            ## break up underscores
+            ## title case
+            ## drop 'CIDC' / 'CIMAC' anywhere
+            ## drop trailing 'Name'
             cat = (
                 cat.replace("_", " ")
                 .title()
-                .replace("Cimac", "CIMAC")
-                .replace("Cidc", "CIDC")
-                .replace("Id", "ID")
-                .rsplit("Name", 1)[0]
-                .strip()
+                .replace("Cidc", "")
+                .replace("Cimac", "")
             )
+            if cat.endswith("Name") and not cat == "Name":
+                cat = cat[:-4]
+
+        # strip so it's pretty!
+        columns.append(cat.strip())
+    metadata_df.columns = columns
+
+    # don't cut down more if 3 or less survive
+    # these are probably the ones we want kept above
+    if metadata_df.shape[1] > 3:
+    # Remove the second of any pair of columns where they lead to the
+    # same groupings, combining into first column if values are different
+        m = 0
+        while m < metadata_df.shape[1]:
+            n = 1
+            while n+m < metadata_df.shape[1]:
+                # for every unique pairing of columns
+
+                c, d = metadata_df.columns[[m,m+n]] # get the two column names
+                if len(metadata_df[c].unique()) == len(metadata_df[d].unique()):
+                    # to be the same, they have the same number of uniques
+                    
+                    # get the groupings in a comparable form
+                    group_c = [tuple(metadata_df.index[metadata_df[c] == u]) for u in metadata_df[c].unique()]
+                    group_d = [tuple(metadata_df.index[metadata_df[d] == u]) for u in metadata_df[d].unique()]
+                    if group_c == group_d: # they are guaranteed to be in the same order if they're the same
+                        if (metadata_df[c] == metadata_df[d]).all():
+                            # if exactly the same, no need to keep both
+                            metadata_df.pop(d)
+                        else:
+                            # then combine the data
+                            metadata_df[c] = metadata_df[c].astype(str) + " / " + metadata_df.pop(d).astype(str)
+
+                        # either way combine names
+                        columns = metadata_df.columns.to_list()
+                        columns[m] = f"{c} / {d}"
+                        metadata_df.columns = columns
+                        
+                        n -= 1 # decrement to offset increment
+                n += 1 # increment
+            m += 1 # increment
+
+    # build the output str in ClusterGrammer compatible format    
+    categories = []
+    for idx, row in metadata_df.iterrows():
+        temp = [f"Sample Id: {idx}"]
+
+        for cat, val in row.items():
             temp.append(f"{cat}: {val}")
 
-        ret.append(tuple(temp))
+        categories.append(tuple(temp))
 
-    return ret
+    return categories
 
 
 def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
