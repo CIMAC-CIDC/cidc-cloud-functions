@@ -235,8 +235,6 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     fake_cytof.close()
 
-<<<<<<< Updated upstream
-
 def test_cytof_to_dataframe():
     """Extract data from a CyTOF summary CSV"""
     with open(CYTOF_PATH, "rb") as fake_cytof:
@@ -267,7 +265,7 @@ def test_clustergrammerify_single_sample(metadata_df):
 
     with pytest.raises(AssertionError, match="with only one sample"):
         cg._clustergrammerify(data_df, metadata_df)
-=======
+
 def test_metadata_to_categories():
     # Converts names as expected
     md_names = pd.DataFrame(
