@@ -168,8 +168,12 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     """
     metadata_df = metadata_df.copy()  # so don't modify original
 
-    # go through and check cardinality = # unique
+
+    CLINICAL_FIELD_PREFIX = "arbitrary_trial_specific_clinical_annotations."
+    columns = []
     for c in metadata_df.columns:
+    # go through and check cardinality = # unique
+    # also rename the columns to pretty things
         cardinality = len(metadata_df[c].unique())
         if (
             cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY
@@ -187,25 +191,17 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
                 metadata_df.pop(c)
                 continue
 
-        if "protocol_identifier" in c or c in ["participant_id"]:
-            # always duplicates because of structure of samples.csv and participants.csv
-            metadata_df.pop(c)
-            continue
-
         if "(1=Yes,0=No)" in c:
             # these are boolean! let's treat them that way
             metadata_df[c] = metadata_df[c].astype(bool)
 
-    # rename the columns to pretty things
-    columns = []
-    for cat in metadata_df.columns:
 
-        if cat.startswith("arbitrary_trial_specific_clinical_annotations."):
+        if c.startswith(CLINICAL_FIELD_PREFIX):
             # for 10021 participants.csv:
             ## remove the prefix
             ## remove any parentheses
 
-            cat = cat[46:]
+            cat = c[len(CLINICAL_FIELD_PREFIX):]
             if "(" in cat and ")" in cat and cat.index(")") > cat.index("("):
                 cat = cat.split("(", 1)[0] + cat.rsplit(")", 1)[1]
         else:
@@ -214,12 +210,17 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
             ## title case
             ## drop 'CIDC' / 'CIMAC' anywhere
             ## drop trailing 'Name'
-            cat = cat.replace("_", " ").title().replace("Cidc", "").replace("Cimac", "")
+            cat = c.replace("_", " ").title().replace("Cidc", "").replace("Cimac", "")
             if cat.endswith("Name") and not cat == "Name":
                 cat = cat[:-4]
 
         # strip so it's pretty!
-        columns.append(cat.strip())
+        if cat.strip() not in columns:
+            columns.append(cat.strip())
+        else:
+            # if it's a repeated name, pop it
+            metadata_df.pop(c)
+
     metadata_df.columns = columns
 
     # don't cut down more if 3 or less survive
@@ -249,21 +250,7 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
                     if (
                         group_c == group_d
                     ):  # they are guaranteed to be in the same order if they're the same
-                        if (metadata_df[c] == metadata_df[d]).all():
-                            # if exactly the same, no need to keep both
-                            metadata_df.pop(d)
-                        else:
-                            # then combine the data
-                            metadata_df[c] = (
-                                metadata_df[c].astype(str)
-                                + " / "
-                                + metadata_df.pop(d).astype(str)
-                            )
-
-                        # either way combine names
-                        columns = metadata_df.columns.to_list()
-                        columns[m] = f"{c} / {d}"
-                        metadata_df.columns = columns
+                        metadata_df.pop(d)
 
                         n -= 1  # decrement to offset increment
                 n += 1  # increment
@@ -272,7 +259,7 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     # build the output str in ClusterGrammer compatible format
     categories = []
     for idx, row in metadata_df.iterrows():
-        temp = [f"Sample Id: {idx}"]
+        temp = [f"CIMAC Id: {idx}"]
 
         for cat, val in row.items():
             temp.append(f"{cat}: {val}")

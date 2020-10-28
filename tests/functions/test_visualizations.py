@@ -28,7 +28,7 @@ def metadata_df():
     # if three or fewer columns, doesn't try to combine anything when generating CG categories
     metadata_df = pd.DataFrame.from_dict(
         {
-            "cimac_id": ["CTTTTPPS1.01", "CTTTTPPS2.01"],  # index -> CG 'Sample Id'
+            "cimac_id": ["CTTTTPPS1.01", "CTTTTPPS2.01"],  # index -> CG 'CIMAC Id'
             "cimac_participant_id": ["CTTTTPP", "CTTTTPP"],  # -> CG 'Participant Id'
             "cohort_name": [
                 "Arm_A",
@@ -161,7 +161,7 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Based on the contents of fake_npx.xlsx...
     assert row_names == ["Assay1", "Assay2"]
-    assert col_names == ["Sample Id: CTTTTPPS1.01", "Sample Id: CTTTTPPS2.01"]
+    assert col_names == ["CIMAC Id: CTTTTPPS1.01", "CIMAC Id: CTTTTPPS2.01"]
 
     # Based on the construction of metadata_df...
     assert col_cats == [
@@ -222,7 +222,7 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Based on the contents of fake_cytof_summary.csv...
     assert row_names == ["cell1", "cell2"]
-    assert col_names == ["Sample Id: CTTTTPPS1.01", "Sample Id: CTTTTPPS2.01"]
+    assert col_names == ["CIMAC Id: CTTTTPPS1.01", "CIMAC Id: CTTTTPPS2.01"]
 
     # Based on the construction of metadata_df...
     assert col_cats == [
@@ -297,7 +297,7 @@ def test_metadata_to_categories():
     md_names.set_index("cimac_id", inplace=True)
     cat_names = [
         (
-            "Sample Id: CT1",
+            "CIMAC Id: CT1",
             "Participant Id: a",
             "Cohort: c",
             "Sex: d",
@@ -306,7 +306,7 @@ def test_metadata_to_categories():
             "Capital Test: z",
         ),
         (
-            "Sample Id: CT2",
+            "CIMAC Id: CT2",
             "Participant Id: g",
             "Cohort: i",
             "Sex: j",
@@ -315,7 +315,7 @@ def test_metadata_to_categories():
             "Capital Test: y",
         ),
         (
-            "Sample Id: CT3",
+            "CIMAC Id: CT3",
             "Participant Id: m",
             "Cohort: p",
             "Sex: d",
@@ -324,7 +324,7 @@ def test_metadata_to_categories():
             "Capital Test: x",
         ),
         (
-            "Sample Id: CT4",
+            "CIMAC Id: CT4",
             "Participant Id: o",
             "Cohort: i",
             "Sex: j",
@@ -341,33 +341,33 @@ def test_metadata_to_categories():
     md_combine.loc["CT3", "cohort_name"] = "c"
     cat_combine = [
         (
-            "Sample Id: CT1",
+            "CIMAC Id: CT1",
             "Participant Id: a",
-            "Cohort / Sex: c / d",
+            "Cohort: c",
             "OS: e",
             "Died: False",
             "Capital Test: z",
         ),
         (
-            "Sample Id: CT2",
+            "CIMAC Id: CT2",
             "Participant Id: g",
-            "Cohort / Sex: i / j",
+            "Cohort: i",
             "OS: k",
             "Died: True",
             "Capital Test: y",
         ),
         (
-            "Sample Id: CT3",
+            "CIMAC Id: CT3",
             "Participant Id: m",
-            "Cohort / Sex: c / d",
+            "Cohort: c",
             "OS: n",
             "Died: True",
             "Capital Test: x",
         ),
         (
-            "Sample Id: CT4",
+            "CIMAC Id: CT4",
             "Participant Id: o",
-            "Cohort / Sex: i / j",
+            "Cohort: i",
             "OS: e",
             "Died: False",
             "Capital Test: x",
@@ -382,33 +382,33 @@ def test_metadata_to_categories():
     ]
     cat_identical = [
         (
-            "Sample Id: CT1",
+            "CIMAC Id: CT1",
             "Participant Id: a",
-            "Cohort / Sex: d",
+            "Cohort: d",
             "OS: e",
             "Died: False",
             "Capital Test: z",
         ),
         (
-            "Sample Id: CT2",
+            "CIMAC Id: CT2",
             "Participant Id: g",
-            "Cohort / Sex: j",
+            "Cohort: j",
             "OS: k",
             "Died: True",
             "Capital Test: y",
         ),
         (
-            "Sample Id: CT3",
+            "CIMAC Id: CT3",
             "Participant Id: m",
-            "Cohort / Sex: d",
+            "Cohort: d",
             "OS: n",
             "Died: True",
             "Capital Test: x",
         ),
         (
-            "Sample Id: CT4",
+            "CIMAC Id: CT4",
             "Participant Id: o",
-            "Cohort / Sex: j",
+            "Cohort: j",
             "OS: e",
             "Died: False",
             "Capital Test: x",
@@ -427,7 +427,7 @@ def test_metadata_to_categories():
     # others test always keep 'Cohort' and 'Collection Event'
     cat_toomany = [
         (
-            "Sample Id: CT1",
+            "CIMAC Id: CT1",
             "Participant Id: a",
             "Cohort: c",
             "Sex: d",
@@ -435,7 +435,7 @@ def test_metadata_to_categories():
             "Died: False",
         ),
         (
-            "Sample Id: CT2",
+            "CIMAC Id: CT2",
             "Participant Id: g",
             "Cohort: i",
             "Sex: j",
@@ -443,7 +443,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT3",
+            "CIMAC Id: CT3",
             "Participant Id: m",
             "Cohort: p",
             "Sex: d",
@@ -451,7 +451,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT4",
+            "CIMAC Id: CT4",
             "Participant Id: o",
             "Cohort: i",
             "Sex: j",
@@ -459,7 +459,7 @@ def test_metadata_to_categories():
             "Died: False",
         ),
         (
-            "Sample Id: CT5",
+            "CIMAC Id: CT5",
             "Participant Id: a",
             "Cohort: c",
             "Sex: d",
@@ -467,7 +467,7 @@ def test_metadata_to_categories():
             "Died: False",
         ),
         (
-            "Sample Id: CT6",
+            "CIMAC Id: CT6",
             "Participant Id: g",
             "Cohort: i",
             "Sex: j",
@@ -475,7 +475,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT7",
+            "CIMAC Id: CT7",
             "Participant Id: m",
             "Cohort: p",
             "Sex: d",
@@ -483,7 +483,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT8",
+            "CIMAC Id: CT8",
             "Participant Id: o",
             "Cohort: i",
             "Sex: j",
@@ -500,7 +500,7 @@ def test_metadata_to_categories():
     md_alldiff["capital_test"] = range(8)  # dropped because cardinality == md.shape[0]
     cat_alldiff = [
         (
-            "Sample Id: CT1",
+            "CIMAC Id: CT1",
             "Participant Id: a",
             "Cohort: c",
             "Sex: d",
@@ -508,7 +508,7 @@ def test_metadata_to_categories():
             "Died: False",
         ),
         (
-            "Sample Id: CT2",
+            "CIMAC Id: CT2",
             "Participant Id: g",
             "Cohort: i",
             "Sex: j",
@@ -516,7 +516,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT3",
+            "CIMAC Id: CT3",
             "Participant Id: m",
             "Cohort: p",
             "Sex: d",
@@ -524,7 +524,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT4",
+            "CIMAC Id: CT4",
             "Participant Id: o",
             "Cohort: i",
             "Sex: j",
@@ -532,7 +532,7 @@ def test_metadata_to_categories():
             "Died: False",
         ),
         (
-            "Sample Id: CT5",
+            "CIMAC Id: CT5",
             "Participant Id: a",
             "Cohort: c",
             "Sex: d",
@@ -540,7 +540,7 @@ def test_metadata_to_categories():
             "Died: False",
         ),
         (
-            "Sample Id: CT6",
+            "CIMAC Id: CT6",
             "Participant Id: g",
             "Cohort: i",
             "Sex: j",
@@ -548,7 +548,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT7",
+            "CIMAC Id: CT7",
             "Participant Id: m",
             "Cohort: p",
             "Sex: d",
@@ -556,7 +556,7 @@ def test_metadata_to_categories():
             "Died: True",
         ),
         (
-            "Sample Id: CT8",
+            "CIMAC Id: CT8",
             "Participant Id: o",
             "Cohort: i",
             "Sex: j",
@@ -567,5 +567,7 @@ def test_metadata_to_categories():
     categories = _metadata_to_categories(md_alldiff)
     assert cat_alldiff == categories
 
-    # others test lack of combination with <= 3 columns after filtering
-    # others test always keep 'Cohort' and 'Collection Event'
+    # tests with fixture metadata_df would fail if mishandling of
+    ## lack of combination with <= 3 columns after filtering
+    ## others test always keep 'Cohort' and 'Collection Event'
+    # so no need to test them again
