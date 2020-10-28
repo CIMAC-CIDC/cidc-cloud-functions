@@ -168,12 +168,11 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     """
     metadata_df = metadata_df.copy()  # so don't modify original
 
-
     CLINICAL_FIELD_PREFIX = "arbitrary_trial_specific_clinical_annotations."
     columns = []
     for c in metadata_df.columns:
-    # go through and check cardinality = # unique
-    # also rename the columns to pretty things
+        # go through and check cardinality = # unique
+        # also rename the columns to pretty things
         cardinality = len(metadata_df[c].unique())
         if (
             cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY
@@ -195,13 +194,12 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
             # these are boolean! let's treat them that way
             metadata_df[c] = metadata_df[c].astype(bool)
 
-
         if c.startswith(CLINICAL_FIELD_PREFIX):
             # for 10021 participants.csv:
             ## remove the prefix
             ## remove any parentheses
 
-            cat = c[len(CLINICAL_FIELD_PREFIX):]
+            cat = c[len(CLINICAL_FIELD_PREFIX) :]
             if "(" in cat and ")" in cat and cat.index(")") > cat.index("("):
                 cat = cat.split("(", 1)[0] + cat.rsplit(")", 1)[1]
         else:
