@@ -168,16 +168,8 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        (
-            "Participant Id: CTTTTPP",
-            "Collection Event: Event1",
-            "Cohort: Arm_A",
-        ),
-        (
-            "Participant Id: CTTTTPP",
-            "Collection Event: Event2",
-            "Cohort: Arm_A",
-        ),
+        ("Participant Id: CTTTTPP", "Collection Event: Event1", "Cohort: Arm_A"),
+        ("Participant Id: CTTTTPP", "Collection Event: Event2", "Cohort: Arm_A"),
     ]
 
     fake_npx.close()
@@ -237,16 +229,8 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        (
-            "Participant Id: CTTTTPP",
-            "Collection Event: Event1",
-            "Cohort: Arm_A",
-        ),
-        (
-            "Participant Id: CTTTTPP",
-            "Collection Event: Event2",
-            "Cohort: Arm_A",
-        ),
+        ("Participant Id: CTTTTPP", "Collection Event: Event1", "Cohort: Arm_A"),
+        ("Participant Id: CTTTTPP", "Collection Event: Event2", "Cohort: Arm_A"),
     ]
 
     fake_cytof.close()

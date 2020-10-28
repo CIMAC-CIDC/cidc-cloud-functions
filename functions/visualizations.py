@@ -223,15 +223,17 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     print("CG Category options:", ", ".join(columns))
 
     # cut down to only the categories we want
-    columns = [c for c in 
-        [
+    columns = [
+        c
+        for c in [
             "Participant Id",
             "Collection Event",
             "Cohort",
             "Treatment",
             "Disease progression",
             "RECIST clinical benefit status",
-        ] if c in metadata_df.columns
+        ]
+        if c in metadata_df.columns
     ]
     metadata_df = metadata_df[columns]
 
