@@ -34,7 +34,10 @@ def metadata_df():
                 "Arm_A",
                 "Arm_A",
             ],  # kept no matter cardinality; -> CG 'Cohort'
-            "collection_event_name": ["Event1", "Event2"],  # -> CG 'RECIST clinical benefit status'
+            "collection_event_name": [
+                "Event1",
+                "Event2",
+            ],  # -> CG 'RECIST clinical benefit status'
         }
     )
     metadata_df.set_index("cimac_id", inplace=True)
@@ -165,8 +168,16 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event1"),
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event2"),
+        (
+            "Participant Id: CTTTTPP",
+            "Cohort: Arm_A",
+            "RECIST clinical benefit status: Event1",
+        ),
+        (
+            "Participant Id: CTTTTPP",
+            "Cohort: Arm_A",
+            "RECIST clinical benefit status: Event2",
+        ),
     ]
 
     fake_npx.close()
@@ -226,8 +237,16 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event1"),
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event2"),
+        (
+            "Participant Id: CTTTTPP",
+            "Cohort: Arm_A",
+            "RECIST clinical benefit status: Event1",
+        ),
+        (
+            "Participant Id: CTTTTPP",
+            "Cohort: Arm_A",
+            "RECIST clinical benefit status: Event2",
+        ),
     ]
 
     fake_cytof.close()
@@ -272,7 +291,13 @@ def test_metadata_to_categories():
             ["CT1", "a", "b", "c", 0, "z"],
             ["CT2", "d", "e", "f", 1, "y"],
             ["CT3", "g", "h", "i", 1, "x"],
-            ["CT4", "j", "e", "c", 0, "x",
+            [
+                "CT4",
+                "j",
+                "e",
+                "c",
+                0,
+                "x",
             ],  # repeats; cardinality=[4, 4, 2, 3, 3, 2, 3]
         ],
         columns=[
