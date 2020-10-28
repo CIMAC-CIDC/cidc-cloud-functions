@@ -34,7 +34,7 @@ def metadata_df():
                 "Arm_A",
                 "Arm_A",
             ],  # kept no matter cardinality; -> CG 'Cohort'
-            "collection_event_name": ["Event1", "Event2"],  # -> CG 'Collection Event'
+            "collection_event_name": ["Event1", "Event2"],  # -> CG 'RECIST clinical benefit status'
         }
     )
     metadata_df.set_index("cimac_id", inplace=True)
@@ -165,8 +165,8 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event1"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event2"),
     ]
 
     fake_npx.close()
@@ -226,8 +226,8 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
-        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event1"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "RECIST clinical benefit status: Event2"),
     ]
 
     fake_cytof.close()
@@ -269,29 +269,19 @@ def test_metadata_to_categories():
     # Converts names as expected
     md_names = pd.DataFrame(
         [
-            ["CT1", "a", "b", "c", "d", "e", 0, "z"],
-            ["CT2", "g", "h", "i", "j", "k", 1, "y"],
-            ["CT3", "m", "b", "p", "d", "n", 1, "x"],
-            [
-                "CT4",
-                "o",
-                "b",
-                "i",
-                "j",
-                "e",
-                0,
-                "x",
-            ],  # repeats; cardinality=[4, 4, 2, 3, 2, 3, 2, 3]
+            ["CT1", "a", "b", "c", 0, "z"],
+            ["CT2", "d", "e", "f", 1, "y"],
+            ["CT3", "g", "h", "i", 1, "x"],
+            ["CT4", "j", "e", "c", 0, "x",
+            ],  # repeats; cardinality=[4, 4, 2, 3, 3, 2, 3]
         ],
         columns=[
             "cimac_id",  # new index
             "cimac_participant_id",  # should be kept no matter what; CIMAC dropped
-            "participant_id",  # should be dropped no matter what -> should be hashed
             "cohort_name",  # 'name' dropped
-            "arbitrary_trial_specific_clinical_annotations.Sex",  # front stripped
-            "arbitrary_trial_specific_clinical_annotations.OS (days)",  # front stripped, parentheses dropped; same casing
-            "arbitrary_trial_specific_clinical_annotations.Died(1=Yes,0=No)",  # front stripped, parentheses dropped, to bool
-            "capital_test",  # for Title case, under to spaces without intro
+            "arbitrary_trial_specific_clinical_annotations.RECIST clinical benefit status",  # front stripped
+            "treatment",  # for Title case, under to spaces without intro
+            "arbitrary_trial_specific_clinical_annotations.Collection Event (days)",  # front stripped, parentheses dropped; same casing
         ],
     )
     md_names.set_index("cimac_id", inplace=True)
@@ -299,275 +289,36 @@ def test_metadata_to_categories():
         (
             "CIMAC Id: CT1",
             "Participant Id: a",
-            "Cohort: c",
-            "Sex: d",
-            "OS: e",
-            "Died: False",
-            "Capital Test: z",
+            "Cohort: b",
+            "RECIST clinical benefit status: c",
+            "Treatment: False",
+            "Collection Event: z",
         ),
         (
             "CIMAC Id: CT2",
-            "Participant Id: g",
-            "Cohort: i",
-            "Sex: j",
-            "OS: k",
-            "Died: True",
-            "Capital Test: y",
+            "Participant Id: d",
+            "Cohort: e",
+            "RECIST clinical benefit status: f",
+            "Treatment: True",
+            "Collection Event: y",
         ),
         (
             "CIMAC Id: CT3",
-            "Participant Id: m",
-            "Cohort: p",
-            "Sex: d",
-            "OS: n",
-            "Died: True",
-            "Capital Test: x",
+            "Participant Id: g",
+            "Cohort: h",
+            "RECIST clinical benefit status: i",
+            "Treatment: True",
+            "Collection Event: x",
         ),
         (
             "CIMAC Id: CT4",
-            "Participant Id: o",
-            "Cohort: i",
-            "Sex: j",
-            "OS: e",
-            "Died: False",
-            "Capital Test: x",
+            "Participant Id: j",
+            "Cohort: e",
+            "RECIST clinical benefit status: c",
+            "Treatment: False",
+            "Collection Event: x",
         ),
     ]
 
     categories = _metadata_to_categories(md_names)
     assert cat_names == categories
-
-    md_combine = md_names.copy()
-    md_combine.loc["CT3", "cohort_name"] = "c"
-    cat_combine = [
-        (
-            "CIMAC Id: CT1",
-            "Participant Id: a",
-            "Cohort: c",
-            "OS: e",
-            "Died: False",
-            "Capital Test: z",
-        ),
-        (
-            "CIMAC Id: CT2",
-            "Participant Id: g",
-            "Cohort: i",
-            "OS: k",
-            "Died: True",
-            "Capital Test: y",
-        ),
-        (
-            "CIMAC Id: CT3",
-            "Participant Id: m",
-            "Cohort: c",
-            "OS: n",
-            "Died: True",
-            "Capital Test: x",
-        ),
-        (
-            "CIMAC Id: CT4",
-            "Participant Id: o",
-            "Cohort: i",
-            "OS: e",
-            "Died: False",
-            "Capital Test: x",
-        ),
-    ]
-    categories = _metadata_to_categories(md_combine)
-    assert cat_combine == categories
-
-    md_identical = md_names.copy()
-    md_identical["cohort_name"] = md_identical[
-        "arbitrary_trial_specific_clinical_annotations.Sex"
-    ]
-    cat_identical = [
-        (
-            "CIMAC Id: CT1",
-            "Participant Id: a",
-            "Cohort: d",
-            "OS: e",
-            "Died: False",
-            "Capital Test: z",
-        ),
-        (
-            "CIMAC Id: CT2",
-            "Participant Id: g",
-            "Cohort: j",
-            "OS: k",
-            "Died: True",
-            "Capital Test: y",
-        ),
-        (
-            "CIMAC Id: CT3",
-            "Participant Id: m",
-            "Cohort: d",
-            "OS: n",
-            "Died: True",
-            "Capital Test: x",
-        ),
-        (
-            "CIMAC Id: CT4",
-            "Participant Id: o",
-            "Cohort: j",
-            "OS: e",
-            "Died: False",
-            "Capital Test: x",
-        ),
-    ]
-    categories = _metadata_to_categories(md_identical)
-    assert cat_identical == categories
-
-    md_toomany = md_names.copy()
-    md_toomany.index = ["CT5", "CT6", "CT7", "CT8"]
-    md_toomany = pd.concat([md_names, md_toomany], axis=0)
-    md_toomany["capital_test"] = list(range(7)) + [
-        0
-    ]  # dropped because cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY = 5
-    # others test lack of combination with <= 3 columns after filtering
-    # others test always keep 'Cohort' and 'Collection Event'
-    cat_toomany = [
-        (
-            "CIMAC Id: CT1",
-            "Participant Id: a",
-            "Cohort: c",
-            "Sex: d",
-            "OS: e",
-            "Died: False",
-        ),
-        (
-            "CIMAC Id: CT2",
-            "Participant Id: g",
-            "Cohort: i",
-            "Sex: j",
-            "OS: k",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT3",
-            "Participant Id: m",
-            "Cohort: p",
-            "Sex: d",
-            "OS: n",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT4",
-            "Participant Id: o",
-            "Cohort: i",
-            "Sex: j",
-            "OS: e",
-            "Died: False",
-        ),
-        (
-            "CIMAC Id: CT5",
-            "Participant Id: a",
-            "Cohort: c",
-            "Sex: d",
-            "OS: e",
-            "Died: False",
-        ),
-        (
-            "CIMAC Id: CT6",
-            "Participant Id: g",
-            "Cohort: i",
-            "Sex: j",
-            "OS: k",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT7",
-            "Participant Id: m",
-            "Cohort: p",
-            "Sex: d",
-            "OS: n",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT8",
-            "Participant Id: o",
-            "Cohort: i",
-            "Sex: j",
-            "OS: e",
-            "Died: False",
-        ),
-    ]
-    categories = _metadata_to_categories(md_toomany)
-    assert cat_toomany == categories
-
-    md_alldiff = md_names.copy()
-    md_alldiff.index = ["CT5", "CT6", "CT7", "CT8"]
-    md_alldiff = pd.concat([md_names, md_alldiff], axis=0)
-    md_alldiff["capital_test"] = range(8)  # dropped because cardinality == md.shape[0]
-    cat_alldiff = [
-        (
-            "CIMAC Id: CT1",
-            "Participant Id: a",
-            "Cohort: c",
-            "Sex: d",
-            "OS: e",
-            "Died: False",
-        ),
-        (
-            "CIMAC Id: CT2",
-            "Participant Id: g",
-            "Cohort: i",
-            "Sex: j",
-            "OS: k",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT3",
-            "Participant Id: m",
-            "Cohort: p",
-            "Sex: d",
-            "OS: n",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT4",
-            "Participant Id: o",
-            "Cohort: i",
-            "Sex: j",
-            "OS: e",
-            "Died: False",
-        ),
-        (
-            "CIMAC Id: CT5",
-            "Participant Id: a",
-            "Cohort: c",
-            "Sex: d",
-            "OS: e",
-            "Died: False",
-        ),
-        (
-            "CIMAC Id: CT6",
-            "Participant Id: g",
-            "Cohort: i",
-            "Sex: j",
-            "OS: k",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT7",
-            "Participant Id: m",
-            "Cohort: p",
-            "Sex: d",
-            "OS: n",
-            "Died: True",
-        ),
-        (
-            "CIMAC Id: CT8",
-            "Participant Id: o",
-            "Cohort: i",
-            "Sex: j",
-            "OS: e",
-            "Died: False",
-        ),
-    ]
-    categories = _metadata_to_categories(md_alldiff)
-    assert cat_alldiff == categories
-
-    # tests with fixture metadata_df would fail if mishandling of
-    ## lack of combination with <= 3 columns after filtering
-    ## others test always keep 'Cohort' and 'Collection Event'
-    # so no need to test them again

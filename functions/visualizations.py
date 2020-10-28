@@ -220,39 +220,19 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
             metadata_df.pop(c)
 
     metadata_df.columns = columns
+    print("CG Category options:", ", ".join(columns))
 
-    # don't cut down more if 3 or less survive
-    # these are probably the ones we want kept above
-    if metadata_df.shape[1] > 3:
-        # Remove the second of any pair of columns where they lead to the
-        # same groupings, combining into first column if values are different
-        m = 0
-        while m < metadata_df.shape[1]:
-            n = 1
-            while n + m < metadata_df.shape[1]:
-                # for every unique pairing of columns
-
-                c, d = metadata_df.columns[[m, m + n]]  # get the two column names
-                if len(metadata_df[c].unique()) == len(metadata_df[d].unique()):
-                    # to be the same, they have the same number of uniques
-
-                    # get the groupings in a comparable form
-                    group_c = [
-                        tuple(metadata_df.index[metadata_df[c] == u])
-                        for u in metadata_df[c].unique()
-                    ]
-                    group_d = [
-                        tuple(metadata_df.index[metadata_df[d] == u])
-                        for u in metadata_df[d].unique()
-                    ]
-                    if (
-                        group_c == group_d
-                    ):  # they are guaranteed to be in the same order if they're the same
-                        metadata_df.pop(d)
-
-                        n -= 1  # decrement to offset increment
-                n += 1  # increment
-            m += 1  # increment
+    # cut down to only the categories we want
+    metadata_df = metadata_df[
+        [
+            "Participant Id",
+            "Collection Event",
+            "Cohort",
+            "Treatment",
+            "Disease progression",
+            "RECIST clinical benefit status",
+        ]
+    ]
 
     # build the output str in ClusterGrammer compatible format
     categories = []
