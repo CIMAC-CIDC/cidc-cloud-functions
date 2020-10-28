@@ -170,13 +170,13 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
     assert col_cats == [
         (
             "Participant Id: CTTTTPP",
+            "Collection Event: Event1",
             "Cohort: Arm_A",
-            "RECIST clinical benefit status: Event1",
         ),
         (
             "Participant Id: CTTTTPP",
+            "Collection Event: Event2",
             "Cohort: Arm_A",
-            "RECIST clinical benefit status: Event2",
         ),
     ]
 
@@ -239,13 +239,13 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
     assert col_cats == [
         (
             "Participant Id: CTTTTPP",
+            "Collection Event: Event1",
             "Cohort: Arm_A",
-            "RECIST clinical benefit status: Event1",
         ),
         (
             "Participant Id: CTTTTPP",
+            "Collection Event: Event2",
             "Cohort: Arm_A",
-            "RECIST clinical benefit status: Event2",
         ),
     ]
 
@@ -291,22 +291,15 @@ def test_metadata_to_categories():
             ["CT1", "a", "b", "c", 0, "z"],
             ["CT2", "d", "e", "f", 1, "y"],
             ["CT3", "g", "h", "i", 1, "x"],
-            [
-                "CT4",
-                "j",
-                "e",
-                "c",
-                0,
-                "x",
-            ],  # repeats; cardinality=[4, 4, 2, 3, 3, 2, 3]
+            ["CT4", "j", "e", "c", 0, "x"],
         ],
         columns=[
             "cimac_id",  # new index
-            "cimac_participant_id",  # should be kept no matter what; CIMAC dropped
+            "cimac_participant_id",  # 'CIMAC' dropped
             "cohort_name",  # 'name' dropped
-            "arbitrary_trial_specific_clinical_annotations.RECIST clinical benefit status",  # front stripped
-            "treatment",  # for Title case, under to spaces without intro
             "arbitrary_trial_specific_clinical_annotations.Collection Event (days)",  # front stripped, parentheses dropped; same casing
+            "arbitrary_trial_specific_clinical_annotations.Treatment (1=Yes,0=No)",  # for Title case, under to spaces without intro
+            "arbitrary_trial_specific_clinical_annotations.RECIST clinical benefit status",  # front stripped
         ],
     )
     md_names.set_index("cimac_id", inplace=True)
@@ -314,34 +307,34 @@ def test_metadata_to_categories():
         (
             "CIMAC Id: CT1",
             "Participant Id: a",
+            "Collection Event: c",
             "Cohort: b",
-            "RECIST clinical benefit status: c",
             "Treatment: False",
-            "Collection Event: z",
+            "RECIST clinical benefit status: z",
         ),
         (
             "CIMAC Id: CT2",
             "Participant Id: d",
+            "Collection Event: f",
             "Cohort: e",
-            "RECIST clinical benefit status: f",
             "Treatment: True",
-            "Collection Event: y",
+            "RECIST clinical benefit status: y",
         ),
         (
             "CIMAC Id: CT3",
             "Participant Id: g",
+            "Collection Event: i",
             "Cohort: h",
-            "RECIST clinical benefit status: i",
             "Treatment: True",
-            "Collection Event: x",
+            "RECIST clinical benefit status: x",
         ),
         (
             "CIMAC Id: CT4",
             "Participant Id: j",
+            "Collection Event: c",
             "Cohort: e",
-            "RECIST clinical benefit status: c",
             "Treatment: False",
-            "Collection Event: x",
+            "RECIST clinical benefit status: x",
         ),
     ]
 

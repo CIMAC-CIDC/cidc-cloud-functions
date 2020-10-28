@@ -223,7 +223,7 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     print("CG Category options:", ", ".join(columns))
 
     # cut down to only the categories we want
-    metadata_df = metadata_df[
+    columns = [c for c in 
         [
             "Participant Id",
             "Collection Event",
@@ -231,8 +231,9 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
             "Treatment",
             "Disease progression",
             "RECIST clinical benefit status",
-        ]
+        ] if c in metadata_df.columns
     ]
+    metadata_df = metadata_df[columns]
 
     # build the output str in ClusterGrammer compatible format
     categories = []
