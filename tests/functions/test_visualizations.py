@@ -12,6 +12,7 @@ from functions.visualizations import (
     _ClustergrammerTransform,
     _cytof_summary_to_dataframe,
     _npx_to_dataframe,
+    _metadata_to_categories,
 )
 
 from tests.util import make_pubsub_event
@@ -24,12 +25,19 @@ CYTOF_PATH = os.path.join(DATA_DIR, "fake_cytof_summary.csv")
 @pytest.fixture
 def metadata_df():
     """Fake participants/sample metadata for `fake_npx.xlsx`"""
+    # if three or fewer columns, doesn't try to combine anything when generating CG categories
     metadata_df = pd.DataFrame.from_dict(
         {
-            "cimac_id": ["CTTTTPPS1.01", "CTTTTPPS2.01"],
-            "cimac_participant_id": ["CTTTTPP", "CTTTTPP"],
-            "cohort_name": ["Arm_A", "Arm_A"],
-            "collection_event_name": ["Event1", "Event2"],
+            "cimac_id": ["CTTTTPPS1.01", "CTTTTPPS2.01"],  # index -> CG 'CIMAC Id'
+            "cimac_participant_id": ["CTTTTPP", "CTTTTPP"],  # -> CG 'Participant Id'
+            "cohort_name": [
+                "Arm_A",
+                "Arm_A",
+            ],  # kept no matter cardinality; -> CG 'Cohort'
+            "collection_event_name": [
+                "Event1",
+                "Event2",
+            ],  # -> CG 'RECIST clinical benefit status'
         }
     )
     metadata_df.set_index("cimac_id", inplace=True)
@@ -156,15 +164,12 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Based on the contents of fake_npx.xlsx...
     assert row_names == ["Assay1", "Assay2"]
-    assert col_names == [
-        "CIMAC Sample ID: CTTTTPPS1.01",
-        "CIMAC Sample ID: CTTTTPPS2.01",
-    ]
+    assert col_names == ["CIMAC Id: CTTTTPPS1.01", "CIMAC Id: CTTTTPPS2.01"]
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
-        ("Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
+        ("Participant Id: CTTTTPP", "Collection Event: Event1", "Cohort: Arm_A"),
+        ("Participant Id: CTTTTPP", "Collection Event: Event2", "Cohort: Arm_A"),
     ]
 
     fake_npx.close()
@@ -220,15 +225,12 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Based on the contents of fake_cytof_summary.csv...
     assert row_names == ["cell1", "cell2"]
-    assert col_names == [
-        "CIMAC Sample ID: CTTTTPPS1.01",
-        "CIMAC Sample ID: CTTTTPPS2.01",
-    ]
+    assert col_names == ["CIMAC Id: CTTTTPPS1.01", "CIMAC Id: CTTTTPPS2.01"]
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
-        ("Participant ID: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
+        ("Participant Id: CTTTTPP", "Collection Event: Event1", "Cohort: Arm_A"),
+        ("Participant Id: CTTTTPP", "Collection Event: Event2", "Cohort: Arm_A"),
     ]
 
     fake_cytof.close()
@@ -264,3 +266,61 @@ def test_clustergrammerify_single_sample(metadata_df):
 
     with pytest.raises(AssertionError, match="with only one sample"):
         cg._clustergrammerify(data_df, metadata_df)
+
+
+def test_metadata_to_categories():
+    # Converts names as expected
+    md_names = pd.DataFrame(
+        [
+            ["CT1", "a", "b", "c", 0, "z"],
+            ["CT2", "d", "e", "f", 1, "y"],
+            ["CT3", "g", "h", "i", 1, "x"],
+            ["CT4", "j", "e", "c", 0, "x"],
+        ],
+        columns=[
+            "cimac_id",  # new index
+            "cimac_participant_id",  # 'CIMAC' dropped
+            "cohort_name",  # 'name' dropped
+            "arbitrary_trial_specific_clinical_annotations.Collection Event (days)",  # front stripped, parentheses dropped; same casing
+            "arbitrary_trial_specific_clinical_annotations.Treatment (1=Yes,0=No)",  # for Title case, under to spaces without intro
+            "arbitrary_trial_specific_clinical_annotations.RECIST clinical benefit status",  # front stripped
+        ],
+    )
+    md_names.set_index("cimac_id", inplace=True)
+    cat_names = [
+        (
+            "CIMAC Id: CT1",
+            "Participant Id: a",
+            "Collection Event: c",
+            "Cohort: b",
+            "Treatment: False",
+            "RECIST clinical benefit status: z",
+        ),
+        (
+            "CIMAC Id: CT2",
+            "Participant Id: d",
+            "Collection Event: f",
+            "Cohort: e",
+            "Treatment: True",
+            "RECIST clinical benefit status: y",
+        ),
+        (
+            "CIMAC Id: CT3",
+            "Participant Id: g",
+            "Collection Event: i",
+            "Cohort: h",
+            "Treatment: True",
+            "RECIST clinical benefit status: x",
+        ),
+        (
+            "CIMAC Id: CT4",
+            "Participant Id: j",
+            "Collection Event: c",
+            "Cohort: e",
+            "Treatment: False",
+            "RECIST clinical benefit status: x",
+        ),
+    ]
+
+    categories = _metadata_to_categories(md_names)
+    assert cat_names == categories

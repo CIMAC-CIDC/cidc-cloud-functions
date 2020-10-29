@@ -17,6 +17,10 @@ from .util import (
     get_blob_as_stream,
 )
 
+# sets the maximum number of divisions within a category
+## that is shown on the top of the clustergrammer
+CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY = 5
+
 
 def vis_preprocessing(event: dict, context: BackgroundContext):
     with sqlalchemy_session() as session:
@@ -144,19 +148,7 @@ class _ClustergrammerTransform:
             data_df.shape[1] > 1
         ), "Cannot generate clustergrammer visualization for data with only one sample."
 
-        # Add category information to `data_df`'s column headers in the format
-        # that Clustergrammer expects:
-        #   "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
-        data_df_columns_with_categories = metadata_df.loc[data_df.columns].apply(
-            lambda row: (
-                f"CIMAC Sample ID: {row.name}",
-                f"Participant ID: {row.cimac_participant_id}",
-                f"Cohort: {row.cohort_name}",
-                f"Collection Event: {row.collection_event_name}",
-            ),
-            axis=1,
-        )
-        data_df.columns = data_df_columns_with_categories
+        data_df.columns = _metadata_to_categories(metadata_df.loc[data_df.columns])
 
         # TODO: find a better way to handle missing values
         data_df.fillna(0, inplace=True)
@@ -167,6 +159,95 @@ class _ClustergrammerTransform:
         net.normalize()
         net.cluster()
         return net.viz
+
+
+def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
+    """
+    Add category information to `data_df`'s column headers in the format that Clustergrammer expects:
+        "([Category 1]: [Value 1], [Category 2]: [Value 2], ...)"
+    """
+    metadata_df = metadata_df.copy()  # so don't modify original
+
+    CLINICAL_FIELD_PREFIX = "arbitrary_trial_specific_clinical_annotations."
+    columns = []
+    for c in metadata_df.columns:
+        # go through and check cardinality = # unique
+        # also rename the columns to pretty things
+        cardinality = len(metadata_df[c].unique())
+        if (
+            cardinality > CLUSTERGRAMMER_MAX_CATEGORY_CARDINALITY
+            or cardinality <= 1
+            or cardinality == metadata_df.shape[0]
+        ):
+            # only want if not all the same, not too many, and not each unique to sample
+
+            if c not in [
+                "cimac_participant_id",
+                "cohort_name",
+                "collection_event_name",
+            ]:
+                # we want to keep the above no matter what
+                metadata_df.pop(c)
+                continue
+
+        if "(1=Yes,0=No)" in c:
+            # these are boolean! let's treat them that way
+            metadata_df[c] = metadata_df[c].astype(bool)
+
+        if c.startswith(CLINICAL_FIELD_PREFIX):
+            # for 10021 participants.csv:
+            ## remove the prefix
+            ## remove any parentheses
+
+            cat = c[len(CLINICAL_FIELD_PREFIX) :]
+            if "(" in cat and ")" in cat and cat.index(")") > cat.index("("):
+                cat = cat.split("(", 1)[0] + cat.rsplit(")", 1)[1]
+        else:
+            # otherwise
+            ## break up underscores
+            ## title case
+            ## drop 'CIDC' / 'CIMAC' anywhere
+            ## drop trailing 'Name'
+            cat = c.replace("_", " ").title().replace("Cidc", "").replace("Cimac", "")
+            if cat.endswith("Name") and not cat == "Name":
+                cat = cat[:-4]
+
+        # strip so it's pretty!
+        if cat.strip() not in columns:
+            columns.append(cat.strip())
+        else:
+            # if it's a repeated name, pop it
+            metadata_df.pop(c)
+
+    metadata_df.columns = columns
+    print("CG Category options:", ", ".join(columns))
+
+    # cut down to only the categories we want
+    columns = [
+        c
+        for c in [
+            "Participant Id",
+            "Collection Event",
+            "Cohort",
+            "Treatment",
+            "Disease progression",
+            "RECIST clinical benefit status",
+        ]
+        if c in metadata_df.columns
+    ]
+    metadata_df = metadata_df[columns]
+
+    # build the output str in ClusterGrammer compatible format
+    categories = []
+    for idx, row in metadata_df.iterrows():
+        temp = [f"CIMAC Id: {idx}"]
+
+        for cat, val in row.items():
+            temp.append(f"{cat}: {val}")
+
+        categories.append(tuple(temp))
+
+    return categories
 
 
 def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
