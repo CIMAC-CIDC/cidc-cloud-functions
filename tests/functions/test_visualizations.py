@@ -294,7 +294,7 @@ def test_metadata_to_categories():
             "Collection Event: c",
             "Cohort: b",
             "RECIST clinical benefit status: z",
-            "Participant Id: a"
+            "Participant Id: a",
         ),
         (
             "CIMAC Id: CT2",
@@ -302,7 +302,7 @@ def test_metadata_to_categories():
             "Collection Event: f",
             "Cohort: e",
             "RECIST clinical benefit status: y",
-            "Participant Id: d"
+            "Participant Id: d",
         ),
         (
             "CIMAC Id: CT3",
@@ -310,7 +310,7 @@ def test_metadata_to_categories():
             "Collection Event: i",
             "Cohort: h",
             "RECIST clinical benefit status: x",
-            "Participant Id: g"
+            "Participant Id: g",
         ),
         (
             "CIMAC Id: CT4",
@@ -318,7 +318,7 @@ def test_metadata_to_categories():
             "Collection Event: c",
             "Cohort: e",
             "RECIST clinical benefit status: x",
-            "Participant Id: j"
+            "Participant Id: j",
         ),
     ]
 
