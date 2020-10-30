@@ -168,8 +168,8 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant Id: CTTTTPP", "Collection Event: Event1", "Cohort: Arm_A"),
-        ("Participant Id: CTTTTPP", "Collection Event: Event2", "Cohort: Arm_A"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
     ]
 
     fake_npx.close()
@@ -229,8 +229,8 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Based on the construction of metadata_df...
     assert col_cats == [
-        ("Participant Id: CTTTTPP", "Collection Event: Event1", "Cohort: Arm_A"),
-        ("Participant Id: CTTTTPP", "Collection Event: Event2", "Cohort: Arm_A"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event1"),
+        ("Participant Id: CTTTTPP", "Cohort: Arm_A", "Collection Event: Event2"),
     ]
 
     fake_cytof.close()
@@ -290,35 +290,35 @@ def test_metadata_to_categories():
     cat_names = [
         (
             "CIMAC Id: CT1",
-            "Participant Id: a",
+            "Treatment: False",
             "Collection Event: c",
             "Cohort: b",
-            "Treatment: False",
             "RECIST clinical benefit status: z",
+            "Participant Id: a"
         ),
         (
             "CIMAC Id: CT2",
-            "Participant Id: d",
+            "Treatment: True",
             "Collection Event: f",
             "Cohort: e",
-            "Treatment: True",
             "RECIST clinical benefit status: y",
+            "Participant Id: d"
         ),
         (
             "CIMAC Id: CT3",
-            "Participant Id: g",
+            "Treatment: True",
             "Collection Event: i",
             "Cohort: h",
-            "Treatment: True",
             "RECIST clinical benefit status: x",
+            "Participant Id: g"
         ),
         (
             "CIMAC Id: CT4",
-            "Participant Id: j",
+            "Treatment: False",
             "Collection Event: c",
             "Cohort: e",
-            "Treatment: False",
             "RECIST clinical benefit status: x",
+            "Participant Id: j"
         ),
     ]
 
