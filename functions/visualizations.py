@@ -235,6 +235,7 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
         ]
         if c in metadata_df.columns
     ]
+    columns = sorted(columns, key = lambda c: len(metadata_df[c].unique()))
     metadata_df = metadata_df[columns]
 
     # build the output str in ClusterGrammer compatible format
