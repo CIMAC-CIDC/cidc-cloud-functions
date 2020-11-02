@@ -35,7 +35,7 @@ def vis_preprocessing(event: dict, context: BackgroundContext):
         # Apply the transformations and get derivative data for visualization.
         for transform_name, transform in _get_transforms().items():
             vis_json = transform(file_record)
-            if vis_json: # Add the vis config to the file_record
+            if vis_json:  # Add the vis config to the file_record
                 setattr(file_record, transform_name, vis_json)
 
         # Save the derivative data additions to the database.
@@ -121,7 +121,7 @@ def _clustergrammer_transform(file_record: DownloadableFiles) -> Optional[dict]:
         data_df = _cytof_summary_to_dataframe(file_blob)
 
     assert (
-        data_df.shape[1] > 1
+        data_df.shape[0] > 1
     ), "Cannot generate clustergrammer visualization for data with only one sample."
 
     data_df_columns_with_categories = _metadata_to_categories(

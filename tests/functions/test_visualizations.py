@@ -8,6 +8,7 @@ import pandas as pd
 import functions.visualizations
 from functions.visualizations import (
     vis_preprocessing,
+    _clustergrammer_transform,
     DownloadableFiles,
     _cytof_summary_to_dataframe,
     _npx_to_dataframe,
@@ -289,14 +290,31 @@ def test_npx_to_dataframe():
     assert expected_df.equals(npx_df)
 
 
-def test_clustergrammerify_single_sample(metadata_df):
+def test_clustergrammerify_single_sample(metadata_df, monkeypatch):
     """Ensure an assertion error gets raised if only one sample is passed to clustergrammerify"""
-    cg = _ClustergrammerTransform()
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
 
     data_df = pd.DataFrame({"CTTTPPS1.01": [1]}, index=["row1"])
+    _npx_to_dataframe = MagicMock()
+    _npx_to_dataframe.return_value = data_df
+    monkeypatch.setattr(
+        functions.visualizations, "_npx_to_dataframe", _npx_to_dataframe
+    )
+
+    monkeypatch.setattr(functions.visualizations, "get_blob_as_stream", MagicMock())
+
+    record = MagicMock()
+    record.object_url = "foo"
+    record.upload_type = "something"
+    record.data_format = "npx"
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
 
     with pytest.raises(AssertionError, match="with only one sample"):
-        cg._clustergrammerify(data_df, metadata_df)
+        _clustergrammer_transform(record)
 
 
 def test_metadata_to_categories():
