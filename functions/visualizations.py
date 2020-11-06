@@ -238,6 +238,12 @@ def _metadata_to_categories(metadata_df: pd.DataFrame) -> list:
     columns = sorted(columns, key=lambda c: len(metadata_df[c].unique()))
     metadata_df = metadata_df[columns]
 
+    if "Disease progression" in columns:
+        columns[columns.index("Disease progression")] = "Disease prog"
+    if "RECIST clinical benefit status" in columns:
+        columns[columns.index("RECIST clinical benefit status")] = "Clin benefit"
+    metadata_df.columns = columns
+
     # build the output str in ClusterGrammer compatible format
     categories = []
     for idx, row in metadata_df.iterrows():
