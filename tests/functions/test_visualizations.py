@@ -34,10 +34,7 @@ def metadata_df():
                 "Arm_A",
                 "Arm_A",
             ],  # kept no matter cardinality; -> CG 'Cohort'
-            "collection_event_name": [
-                "Event1",
-                "Event2",
-            ],  # -> CG 'RECIST clinical benefit status'
+            "collection_event_name": ["Event1", "Event2"],  # -> CG 'Clin benefit'
         }
     )
     metadata_df.set_index("cimac_id", inplace=True)
@@ -293,7 +290,7 @@ def test_metadata_to_categories():
             "Treatment: False",
             "Collection Event: c",
             "Cohort: b",
-            "RECIST clinical benefit status: z",
+            "Clin benefit: z",
             "Participant Id: a",
         ),
         (
@@ -301,7 +298,7 @@ def test_metadata_to_categories():
             "Treatment: True",
             "Collection Event: f",
             "Cohort: e",
-            "RECIST clinical benefit status: y",
+            "Clin benefit: y",
             "Participant Id: d",
         ),
         (
@@ -309,7 +306,7 @@ def test_metadata_to_categories():
             "Treatment: True",
             "Collection Event: i",
             "Cohort: h",
-            "RECIST clinical benefit status: x",
+            "Clin benefit: x",
             "Participant Id: g",
         ),
         (
@@ -317,7 +314,7 @@ def test_metadata_to_categories():
             "Treatment: False",
             "Collection Event: c",
             "Cohort: e",
-            "RECIST clinical benefit status: x",
+            "Clin benefit: x",
             "Participant Id: j",
         ),
     ]
