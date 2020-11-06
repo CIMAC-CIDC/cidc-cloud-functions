@@ -37,7 +37,7 @@ def metadata_df():
             "collection_event_name": [
                 "Event1",
                 "Event2",
-            ],  # -> CG 'RECIST clinical benefit status'
+            ],  # -> CG 'Clin benefit'
         }
     )
     metadata_df.set_index("cimac_id", inplace=True)
@@ -283,7 +283,7 @@ def test_metadata_to_categories():
             "cohort_name",  # 'name' dropped
             "arbitrary_trial_specific_clinical_annotations.Collection Event (days)",  # front stripped, parentheses dropped; same casing
             "arbitrary_trial_specific_clinical_annotations.Treatment (1=Yes,0=No)",  # for Title case, under to spaces without intro
-            "arbitrary_trial_specific_clinical_annotations.RECIST clinical benefit status",  # front stripped
+            "arbitrary_trial_specific_clinical_annotations.Clin benefit",  # front stripped
         ],
     )
     md_names.set_index("cimac_id", inplace=True)
@@ -293,7 +293,7 @@ def test_metadata_to_categories():
             "Treatment: False",
             "Collection Event: c",
             "Cohort: b",
-            "RECIST clinical benefit status: z",
+            "Clin benefit: z",
             "Participant Id: a",
         ),
         (
@@ -301,7 +301,7 @@ def test_metadata_to_categories():
             "Treatment: True",
             "Collection Event: f",
             "Cohort: e",
-            "RECIST clinical benefit status: y",
+            "Clin benefit: y",
             "Participant Id: d",
         ),
         (
@@ -309,7 +309,7 @@ def test_metadata_to_categories():
             "Treatment: True",
             "Collection Event: i",
             "Cohort: h",
-            "RECIST clinical benefit status: x",
+            "Clin benefit: x",
             "Participant Id: g",
         ),
         (
@@ -317,7 +317,7 @@ def test_metadata_to_categories():
             "Treatment: False",
             "Collection Event: c",
             "Cohort: e",
-            "RECIST clinical benefit status: x",
+            "Clin benefit: x",
             "Participant Id: j",
         ),
     ]
