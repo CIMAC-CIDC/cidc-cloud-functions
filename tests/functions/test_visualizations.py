@@ -34,10 +34,7 @@ def metadata_df():
                 "Arm_A",
                 "Arm_A",
             ],  # kept no matter cardinality; -> CG 'Cohort'
-            "collection_event_name": [
-                "Event1",
-                "Event2",
-            ],  # -> CG 'Clin benefit'
+            "collection_event_name": ["Event1", "Event2"],  # -> CG 'Clin benefit'
         }
     )
     metadata_df.set_index("cimac_id", inplace=True)
@@ -283,7 +280,7 @@ def test_metadata_to_categories():
             "cohort_name",  # 'name' dropped
             "arbitrary_trial_specific_clinical_annotations.Collection Event (days)",  # front stripped, parentheses dropped; same casing
             "arbitrary_trial_specific_clinical_annotations.Treatment (1=Yes,0=No)",  # for Title case, under to spaces without intro
-            "arbitrary_trial_specific_clinical_annotations.Clin benefit",  # front stripped
+            "arbitrary_trial_specific_clinical_annotations.RECIST clinical benefit status",  # front stripped
         ],
     )
     md_names.set_index("cimac_id", inplace=True)
