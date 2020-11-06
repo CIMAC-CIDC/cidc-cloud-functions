@@ -20,9 +20,9 @@ env:
     - FUNCTION=send_email TOPIC=emails TIMEOUT=60 MEMORY=256
     - FUNCTION=store_auth0_logs TOPIC=daily_cron TIMEOUT=120 MEMORY=256
     - FUNCTION=disable_inactive_users TOPIC=daily_cron TIMEOUT=120 MEMORY=256
-    - FUNCTION=vis_preprocessing TOPIC=artifact_upload TIMEOUT=120 MEMORY=512
+    - FUNCTION=vis_preprocessing TOPIC=artifact_upload TIMEOUT=540 MEMORY=1024
     - FUNCTION=derive_files_from_manifest_upload TOPIC=patient_sample_update TIMEOUT=60 MEMORY=256
-    - FUNCTION=derive_files_from_assay_or_analysis_upload TOPIC=assay_or_analysis_upload_complete TIMEOUT=60 MEMORY=1024
+    - FUNCTION=derive_files_from_assay_or_analysis_upload TOPIC=assay_or_analysis_upload_complete TIMEOUT=540 MEMORY=1024
 before_install:
   # Install and configure the gcloud SDK. Values for these environment
   # variables must be set in the Travis CI console for this to work:
