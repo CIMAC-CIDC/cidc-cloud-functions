@@ -16,6 +16,9 @@ if not GCP_PROJECT:
     # We're running locally, so load config from .env
     load_dotenv()
 
+    # Pull GCP_PROJECT from .env
+    GCP_PROJECT = os.environ.get("GCP_PROJECT")
+
 TESTING = os.environ.get("TESTING")
 FLASK_ENV = os.environ.get("FLASK_ENV")
 secrets = get_secrets_manager(TESTING)
@@ -25,7 +28,7 @@ SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
 GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
-GOOGLE_ANALYSIS_GROUP_ROLE = "projects/cidc-dfci/roles/CIDC_biofx"
+GOOGLE_ANALYSIS_GROUP_ROLE = f"projects/{GCP_PROJECT}/roles/CIDC_biofx"
 GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
     os.environ.get("GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT", "{}")
 )
