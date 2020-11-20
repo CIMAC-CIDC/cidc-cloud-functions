@@ -16,6 +16,9 @@ if not GCP_PROJECT:
     # We're running locally, so load config from .env
     load_dotenv()
 
+    # Pull GCP_PROJECT from .env
+    GCP_PROJECT = os.environ.get("GCP_PROJECT")
+
 TESTING = os.environ.get("TESTING")
 FLASK_ENV = os.environ.get("FLASK_ENV")
 secrets = get_secrets_manager(TESTING)
