@@ -75,6 +75,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
     """
     job_id = int(extract_pubsub_data(event))
 
+    logger.info(f"ingest_upload execution started on upload job id {job_id}")
+
     with sqlalchemy_session() as session:
         job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
 
@@ -94,7 +96,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 )
 
         logger.info(
-            f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
+            f"Found completed upload job (job_id={job_id}) with uploader {job.uploader_email}"
         )
 
         url_bundles = [
@@ -146,8 +148,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        def create_downloadable_file(args):
-            artifact_metadata, additional_metadata = args
+        def create_downloadable_file(artifact_metadata, additional_metadata):
             logger.debug(
                 f"Saving metadata to downloadable_files table: {artifact_metadata}"
             )
@@ -160,18 +161,19 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 commit=False,
             )
 
+        logger.info("Saving artifact records to the downloadable_files table.")
         with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
             job, session
         ):
-            executor.map(create_downloadable_file, downloadable_files)
+            executor.map(create_downloadable_file, *zip(*downloadable_files))
 
         # Additionally, make the metadata xlsx a downloadable file
-        _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
-        full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
-        data_format = "Assay Metadata"
-        facet_group = f"{job.upload_type}|{data_format}"
-        logger.info(f"Saving {full_uri} as a downloadable_file.")
         with saved_failure_status(job, session):
+            _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+            full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
+            data_format = "Assay Metadata"
+            facet_group = f"{job.upload_type}|{data_format}"
+            logger.info(f"Saving {full_uri} as a downloadable_file.")
             DownloadableFiles.create_from_blob(
                 trial_id,
                 job.upload_type,
@@ -198,12 +200,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Trigger post-processing on uploaded data files
         logger.info(f"Publishing object URLs to 'artifact_upload' topic")
-
-        def publish_object_url(url_bundle: URLBundle):
-            publish_artifact_upload(url_bundle.target_url)
-
         with ThreadPoolExecutor(THREADPOOL_THREADS) as executor:
-            executor.map(publish_object_url, url_bundles)
+            executor.map(
+                lambda url_bundle: publish_artifact_upload(url_bundle.target_url),
+                url_bundles,
+            )
 
         # Trigger post-processing on entire upload
         _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
