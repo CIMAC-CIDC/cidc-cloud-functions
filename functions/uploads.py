@@ -1,7 +1,7 @@
 """A pub/sub triggered functions that respond to data upload events"""
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Optional, Tuple
+from typing import Optional, Tuple, NamedTuple
 from os import environ
 from datetime import datetime, timedelta
 
@@ -32,6 +32,23 @@ from .util import (
     make_pseudo_blob,
 )
 
+THREADPOOL_THREADS = 16
+
+_storage_client = None
+
+
+def get_storage_client():
+    global _storage_client
+    if _storage_client is None:
+        _storage_client = storage.Client()
+    return _storage_client
+
+
+class URLBundle(NamedTuple):
+    upload_url: str
+    target_url: str
+    artifact_uuid: str
+
 
 @contextmanager
 def saved_failure_status(job: UploadJobs, session):
@@ -55,19 +72,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
     with sqlalchemy_session() as session:
         job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
+
+        # Check ingestion pre-conditions
         if not job:
             raise Exception(f"No assay upload job with id {job_id} found.")
-
-        # Ensure this is a completed upload and nothing else
         if UploadJobStatus(job.status) != UploadJobStatus.UPLOAD_COMPLETED:
             raise Exception(
                 f"Received ID for job with status {job.status}. Aborting ingestion."
             )
-
-        print(
-            f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
-        )
-
         trial_id = job.metadata_patch.get(prism.PROTOCOL_ID_FIELD_NAME)
         if not trial_id:
             # We should never hit this, since metadata should be pre-validated.
@@ -76,30 +88,25 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     f"Invalid assay metadata: missing protocol identifier ({prism.PROTOCOL_ID_FIELD_NAME})."
                 )
 
-        def do_copy(urls):
-            upload_url, target_url = urls
-            with saved_failure_status(job, session):
-                # Copy the uploaded GCS object to the data bucket
-                destination_object = _gcs_copy(
-                    GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
-                )
-            return destination_object
+        print(
+            f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
+        )
 
-        uuids = []
-        url_mapping = []
-        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
-            url_mapping.append((upload_url, target_url))
-            uuids.append(uuid)
+        url_bundles = [
+            URLBundle(*bundle) for bundle in job.upload_uris_with_data_uris_with_uuids()
+        ]
 
         # Copy GCS blobs in parallel
-        pool = ThreadPool(8)
-        destination_objects = pool.map(do_copy, url_mapping)
-        pool.close()
-        pool.join()
+        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
+            job, session
+        ):
+            destination_objects = executor.map(
+                copy_from_upload_to_data_bucket, url_bundles
+            )
 
         downloadable_files = []
         metadata_with_urls = job.metadata_patch
-        for destination_object, uuid in zip(destination_objects, uuids):
+        for destination_object, url_bundle in zip(destination_objects, url_bundles):
             with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
                 print(f"Adding artifact {destination_object.name} to metadata.")
@@ -108,7 +115,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     artifact_metadata,
                     additional_metadata,
                 ) = TrialMetadata.merge_gcs_artifact(
-                    metadata_with_urls, job.upload_type, uuid, destination_object
+                    metadata_with_urls,
+                    job.upload_type,
+                    url_bundle.artifact_uuid,
+                    destination_object,
                 )
 
             # Hang on to the artifact metadata
@@ -129,25 +139,30 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        for artifact_metadata, additional_metadata in downloadable_files:
+        def create_downloadable_file(args):
+            artifact_metadata, additional_metadata = args
             print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
-            with saved_failure_status(job, session):
-                DownloadableFiles.create_from_metadata(
-                    trial_id,
-                    job.upload_type,
-                    artifact_metadata,
-                    additional_metadata=additional_metadata,
-                    session=session,
-                    commit=False,
-                )
+            DownloadableFiles.create_from_metadata(
+                trial_id,
+                job.upload_type,
+                artifact_metadata,
+                additional_metadata=additional_metadata,
+                session=session,
+                commit=False,
+            )
+
+        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
+            job, session
+        ):
+            executor.map(create_downloadable_file, downloadable_files)
 
         # Additionally, make the metadata xlsx a downloadable file
+        _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+        full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
+        data_format = "Assay Metadata"
+        facet_group = f"{job.upload_type}|{data_format}"
+        print(f"Saving {full_uri} as a downloadable_file.")
         with saved_failure_status(job, session):
-            _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
-            full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
-            data_format = "Assay Metadata"
-            facet_group = f"{job.upload_type}|{data_format}"
-            print(f"Saving {full_uri} as a downloadable_file.")
             DownloadableFiles.create_from_blob(
                 trial_id,
                 job.upload_type,
@@ -173,16 +188,22 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for _, target_url in url_mapping:
-            print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
-            publish_artifact_upload(target_url)
+        print(f"Publishing object URLs to 'artifact_upload' topic")
+
+        def publish_object_url(url_bundle: URLBundle):
+            publish_artifact_upload(url_bundle.target_url)
+
+        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor:
+            executor.map(publish_object_url, url_bundles)
 
         # Trigger post-processing on entire upload
         _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
-    return jsonify(dict(url_mapping))
+    return jsonify(
+        dict((bundle.upload_url, bundle.target_url) for bundle in url_bundles)
+    )
 
 
 def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
@@ -194,7 +215,7 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
         f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
     )
 
-    storage_client = storage.Client()
+    storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
@@ -227,6 +248,17 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     )
 
     bucket.set_iam_policy(policy)
+
+
+def copy_from_upload_to_data_bucket(url_bundle: URLBundle):
+    # Copy the uploaded GCS object to the data bucket
+    destination_object = _gcs_copy(
+        GOOGLE_UPLOAD_BUCKET,
+        url_bundle.upload_url,
+        GOOGLE_DATA_BUCKET,
+        url_bundle.target_url,
+    )
+    return destination_object
 
 
 def _gcs_copy(
@@ -270,7 +302,7 @@ def _get_bucket_and_blob(
         )
         return (bucket_name, make_pseudo_blob(object_name))
 
-    storage_client = storage.Client()
+    storage_client = get_storage_client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
