@@ -1,8 +1,9 @@
 """A pub/sub triggered functions that respond to data upload events"""
+import sys
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Optional, Tuple, NamedTuple
-from os import environ
 from datetime import datetime, timedelta
 
 from flask import jsonify
@@ -31,6 +32,10 @@ from .util import (
     sqlalchemy_session,
     make_pseudo_blob,
 )
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler(sys.stdout))
+logger.setLevel(logging.DEBUG if FLASK_ENV == "development" else logging.INFO)
 
 THREADPOOL_THREADS = 16
 
@@ -88,7 +93,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     f"Invalid assay metadata: missing protocol identifier ({prism.PROTOCOL_ID_FIELD_NAME})."
                 )
 
-        print(
+        logger.info(
             f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
         )
 
@@ -97,6 +102,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         ]
 
         # Copy GCS blobs in parallel
+        logger.info("Copying artifacts from upload bucket to data bucket.")
         with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
             job, session
         ):
@@ -106,10 +112,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         downloadable_files = []
         metadata_with_urls = job.metadata_patch
+        logger.info("Adding artifact metadata to metadata patch.")
         for destination_object, url_bundle in zip(destination_objects, url_bundles):
             with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
-                print(f"Adding artifact {destination_object.name} to metadata.")
+                logger.debug(f"Adding artifact {destination_object.name} to metadata.")
                 (
                     metadata_with_urls,
                     artifact_metadata,
@@ -122,11 +129,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 )
 
             # Hang on to the artifact metadata
-            print(f"artifact metadata: {artifact_metadata}")
+            logger.debug(f"artifact metadata: {artifact_metadata}")
             downloadable_files.append((artifact_metadata, additional_metadata))
 
         # Add metadata for this upload to the database
-        print(
+        logger.info(
             "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
             metadata_with_urls,
         )
@@ -141,7 +148,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # in the event that this is the first upload for a trial.
         def create_downloadable_file(args):
             artifact_metadata, additional_metadata = args
-            print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
+            logger.debug(
+                f"Saving metadata to downloadable_files table: {artifact_metadata}"
+            )
             DownloadableFiles.create_from_metadata(
                 trial_id,
                 job.upload_type,
@@ -161,7 +170,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
         data_format = "Assay Metadata"
         facet_group = f"{job.upload_type}|{data_format}"
-        print(f"Saving {full_uri} as a downloadable_file.")
+        logger.info(f"Saving {full_uri} as a downloadable_file.")
         with saved_failure_status(job, session):
             DownloadableFiles.create_from_blob(
                 trial_id,
@@ -188,7 +197,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        print(f"Publishing object URLs to 'artifact_upload' topic")
+        logger.info(f"Publishing object URLs to 'artifact_upload' topic")
 
         def publish_object_url(url_bundle: URLBundle):
             publish_artifact_upload(url_bundle.target_url)
@@ -211,7 +220,7 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
     that allows `group_email` to read all objects within a `prefix`.
     """
-    print(
+    logger.info(
         f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
     )
 
@@ -266,12 +275,12 @@ def _gcs_copy(
 ):
     """Copy a GCS object from one bucket to another"""
     if FLASK_ENV == "development":
-        print(
+        logger.debug(
             f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
         return make_pseudo_blob(target_object)
 
-    print(
+    logger.debug(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
     )
     from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
@@ -297,7 +306,7 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if FLASK_ENV == "development":
-        print(
+        logger.debug(
             f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
         )
         return (bucket_name, make_pseudo_blob(object_name))
