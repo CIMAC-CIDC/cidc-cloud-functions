@@ -1,8 +1,9 @@
 """A pub/sub triggered functions that respond to data upload events"""
-from multiprocessing.pool import ThreadPool
+import sys
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Optional, Tuple
-from os import environ
+from typing import Optional, Tuple, NamedTuple
 from datetime import datetime, timedelta
 
 from flask import jsonify
@@ -32,6 +33,27 @@ from .util import (
     make_pseudo_blob,
 )
 
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler(sys.stdout))
+logger.setLevel(logging.DEBUG if FLASK_ENV == "development" else logging.INFO)
+
+THREADPOOL_THREADS = 16
+
+_storage_client = None
+
+
+def get_storage_client():
+    global _storage_client
+    if _storage_client is None:
+        _storage_client = storage.Client()
+    return _storage_client
+
+
+class URLBundle(NamedTuple):
+    upload_url: str
+    target_url: str
+    artifact_uuid: str
+
 
 @contextmanager
 def saved_failure_status(job: UploadJobs, session):
@@ -53,21 +75,18 @@ def ingest_upload(event: dict, context: BackgroundContext):
     """
     job_id = int(extract_pubsub_data(event))
 
+    logger.info(f"ingest_upload execution started on upload job id {job_id}")
+
     with sqlalchemy_session() as session:
         job: UploadJobs = UploadJobs.find_by_id(job_id, session=session)
+
+        # Check ingestion pre-conditions
         if not job:
             raise Exception(f"No assay upload job with id {job_id} found.")
-
-        # Ensure this is a completed upload and nothing else
         if UploadJobStatus(job.status) != UploadJobStatus.UPLOAD_COMPLETED:
             raise Exception(
                 f"Received ID for job with status {job.status}. Aborting ingestion."
             )
-
-        print(
-            f"Detected completed upload job (job_id={job_id}) for user {job.uploader_email}"
-        )
-
         trial_id = job.metadata_patch.get(prism.PROTOCOL_ID_FIELD_NAME)
         if not trial_id:
             # We should never hit this, since metadata should be pre-validated.
@@ -76,47 +95,47 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     f"Invalid assay metadata: missing protocol identifier ({prism.PROTOCOL_ID_FIELD_NAME})."
                 )
 
-        def do_copy(urls):
-            upload_url, target_url = urls
-            with saved_failure_status(job, session):
-                # Copy the uploaded GCS object to the data bucket
-                destination_object = _gcs_copy(
-                    GOOGLE_UPLOAD_BUCKET, upload_url, GOOGLE_DATA_BUCKET, target_url
-                )
-            return destination_object
+        logger.info(
+            f"Found completed upload job (job_id={job_id}) with uploader {job.uploader_email}"
+        )
 
-        uuids = []
-        url_mapping = []
-        for upload_url, target_url, uuid in job.upload_uris_with_data_uris_with_uuids():
-            url_mapping.append((upload_url, target_url))
-            uuids.append(uuid)
+        url_bundles = [
+            URLBundle(*bundle) for bundle in job.upload_uris_with_data_uris_with_uuids()
+        ]
 
         # Copy GCS blobs in parallel
-        pool = ThreadPool(8)
-        destination_objects = pool.map(do_copy, url_mapping)
-        pool.close()
-        pool.join()
+        logger.info("Copying artifacts from upload bucket to data bucket.")
+        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
+            job, session
+        ):
+            destination_objects = executor.map(
+                copy_from_upload_to_data_bucket, url_bundles
+            )
 
         downloadable_files = []
         metadata_with_urls = job.metadata_patch
-        for destination_object, uuid in zip(destination_objects, uuids):
+        logger.info("Adding artifact metadata to metadata patch.")
+        for destination_object, url_bundle in zip(destination_objects, url_bundles):
             with saved_failure_status(job, session):
                 # Add the artifact info to the metadata patch
-                print(f"Adding artifact {destination_object.name} to metadata.")
+                logger.debug(f"Adding artifact {destination_object.name} to metadata.")
                 (
                     metadata_with_urls,
                     artifact_metadata,
                     additional_metadata,
                 ) = TrialMetadata.merge_gcs_artifact(
-                    metadata_with_urls, job.upload_type, uuid, destination_object
+                    metadata_with_urls,
+                    job.upload_type,
+                    url_bundle.artifact_uuid,
+                    destination_object,
                 )
 
             # Hang on to the artifact metadata
-            print(f"artifact metadata: {artifact_metadata}")
+            logger.debug(f"artifact metadata: {artifact_metadata}")
             downloadable_files.append((artifact_metadata, additional_metadata))
 
         # Add metadata for this upload to the database
-        print(
+        logger.info(
             "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
             metadata_with_urls,
         )
@@ -129,17 +148,24 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        for artifact_metadata, additional_metadata in downloadable_files:
-            print(f"Saving metadata to downloadable_files table: {artifact_metadata}")
-            with saved_failure_status(job, session):
-                DownloadableFiles.create_from_metadata(
-                    trial_id,
-                    job.upload_type,
-                    artifact_metadata,
-                    additional_metadata=additional_metadata,
-                    session=session,
-                    commit=False,
-                )
+        def create_downloadable_file(artifact_metadata, additional_metadata):
+            logger.debug(
+                f"Saving metadata to downloadable_files table: {artifact_metadata}"
+            )
+            DownloadableFiles.create_from_metadata(
+                trial_id,
+                job.upload_type,
+                artifact_metadata,
+                additional_metadata=additional_metadata,
+                session=session,
+                commit=False,
+            )
+
+        logger.info("Saving artifact records to the downloadable_files table.")
+        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
+            job, session
+        ):
+            executor.map(create_downloadable_file, *zip(*downloadable_files))
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
@@ -147,7 +173,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
             data_format = "Assay Metadata"
             facet_group = f"{job.upload_type}|{data_format}"
-            print(f"Saving {full_uri} as a downloadable_file.")
+            logger.info(f"Saving {full_uri} as a downloadable_file.")
             DownloadableFiles.create_from_blob(
                 trial_id,
                 job.upload_type,
@@ -173,16 +199,21 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
 
         # Trigger post-processing on uploaded data files
-        for _, target_url in url_mapping:
-            print(f"Publishing file object URL {target_url} to 'artifact_upload' topic")
-            publish_artifact_upload(target_url)
+        logger.info(f"Publishing object URLs to 'artifact_upload' topic")
+        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor:
+            executor.map(
+                lambda url_bundle: publish_artifact_upload(url_bundle.target_url),
+                url_bundles,
+            )
 
         # Trigger post-processing on entire upload
         _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
-    return jsonify(dict(url_mapping))
+    return jsonify(
+        dict((bundle.upload_url, bundle.target_url) for bundle in url_bundles)
+    )
 
 
 def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
@@ -190,11 +221,11 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
     that allows `group_email` to read all objects within a `prefix`.
     """
-    print(
+    logger.info(
         f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
     )
 
-    storage_client = storage.Client()
+    storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
@@ -229,17 +260,28 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     bucket.set_iam_policy(policy)
 
 
+def copy_from_upload_to_data_bucket(url_bundle: URLBundle):
+    # Copy the uploaded GCS object to the data bucket
+    destination_object = _gcs_copy(
+        GOOGLE_UPLOAD_BUCKET,
+        url_bundle.upload_url,
+        GOOGLE_DATA_BUCKET,
+        url_bundle.target_url,
+    )
+    return destination_object
+
+
 def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
     """Copy a GCS object from one bucket to another"""
     if FLASK_ENV == "development":
-        print(
+        logger.debug(
             f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
         return make_pseudo_blob(target_object)
 
-    print(
+    logger.debug(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
     )
     from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
@@ -265,12 +307,12 @@ def _get_bucket_and_blob(
     """Get GCS metadata for a storage bucket and blob"""
 
     if FLASK_ENV == "development":
-        print(
+        logger.debug(
             f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
         )
         return (bucket_name, make_pseudo_blob(object_name))
 
-    storage_client = storage.Client()
+    storage_client = get_storage_client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
