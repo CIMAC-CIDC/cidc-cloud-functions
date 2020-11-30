@@ -28,8 +28,11 @@ UPLOAD_DATE_PATH = "/2019-09-04T17:00:28.685967"
 FILE_MAP = {URI1 + UPLOAD_DATE_PATH: "uuid1", URI2 + UPLOAD_DATE_PATH: "uuid2"}
 
 
-def email_was_sent(stdout: str) -> bool:
-    return "Would send email with subject '[UPLOAD SUCCESS]" in stdout
+def email_was_sent(records: list) -> bool:
+    for r in records:
+        if "Would send email with subject '[UPLOAD SUCCESS]" in r.msg:
+            return True
+    return False
 
 
 _gcs_obj_mock = namedtuple(
@@ -38,7 +41,7 @@ _gcs_obj_mock = namedtuple(
 
 
 @with_app_context
-def test_ingest_upload(capsys, monkeypatch):
+def test_ingest_upload(caplog, monkeypatch):
     """Test upload data transfer functionality"""
 
     TS_AND_PATH = "/1234/local_path1.txt"
@@ -179,12 +182,12 @@ def test_ingest_upload(capsys, monkeypatch):
 
     # Check that the job status was updated to reflect a successful upload
     assert job.status == UploadJobStatus.MERGE_COMPLETED.value
-    assert email_was_sent(capsys.readouterr()[0])
+    assert email_was_sent(caplog.records)
     publish_artifact_upload.assert_called()
     _encode_and_publish.assert_called()
 
 
-def test_saved_failure_status(capsys):
+def test_saved_failure_status(caplog):
     """Check that the saved_failure_status context manager does what it claims."""
     session = MagicMock()
     job = MagicMock()
@@ -208,4 +211,4 @@ def test_saved_failure_status(capsys):
     assert job.status_details == message
     session.commit.assert_called_once()
 
-    assert not email_was_sent(capsys.readouterr()[0])
+    assert not email_was_sent(caplog.records)
