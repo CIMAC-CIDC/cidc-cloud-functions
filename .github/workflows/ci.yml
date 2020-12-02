@@ -1,0 +1,76 @@
+on:
+  push:
+    branches: [master, production]
+  pull_request:
+    branches: [master, production]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.dev.txt
+      - name: Check code format with black
+        run: |
+          black --check functions main.py --target-version=py37
+      - name: Test with pytest
+        run: |
+          pytest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/production' }}
+    strategy:
+      matrix:
+        include:
+          - name: ingest_upload
+            topic: uploads
+            timeout: 540
+            memory: 2048
+          - name: send_email
+            topic: emails
+            timeout: 60
+            memory: 512
+          - name: store_auth0_logs
+            topic: daily_cron
+            timeout: 120
+            memory: 256
+          - name: disable_inactive_users
+            topic: daily_cron
+            timeout: 120
+            memory: 256
+          - name: vis_preprocessing
+            topic: artifact_upload
+            timeout: 540
+            memory: 1024
+          - name: derive_files_from_manifest_upload
+            topic: patient_sample_update
+            timeout: 60
+            memory: 512
+          - name: derive_files_from_assay_or_analysis_upload
+            topic: assay_or_analysis_upload_complete
+            timeout: 540
+            memory: 1024
+    steps:
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ github.ref == 'refs/heads/production' && 'cidc-dfci' || 'cidc-dfci-staging' }}
+          service_account_key: ${{ github.ref == 'refs/heads/production' && secrets.GCP_SA_KEY_PROD || secrets.GCP_SA_KEY_STAGING }}
+          export_default_credentials: true
+      - name: Deploy ${{ matrix.name }} to Cloud Functions
+        run: >
+          gcloud functions deploy ${{ matrix.name }}
+            --trigger-topic ${{ matrix.topic }}
+            --env-vars-file ${{ matrix.envfile }}
+            --timeout ${{ matrix.timeout }}
+            --memory ${{ matrix.memory }}
+            --runtime python37
