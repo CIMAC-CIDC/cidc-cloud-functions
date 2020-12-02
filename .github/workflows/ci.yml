@@ -1,3 +1,5 @@
+name: Continuous Integreation
+
 on:
   push:
     branches: [master, production]
