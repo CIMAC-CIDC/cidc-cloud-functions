@@ -4,10 +4,6 @@ on:
   pull_request:
     branches: [master, production]
 
-env:
-  IS_STAGING: ${{ github.ref == 'refs/heads/master' }}
-  IS_PROD: ${{ github.ref == 'refs/heads/production' }}
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -31,7 +27,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: test
-    if: ${{ env.IS_STAGING || env.IS_PROD }}
+    if: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/production' }}
     strategy:
       matrix:
         include:
@@ -67,8 +63,8 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
-          project_id: ${{ env.IS_PROD && "cidc-dfci" || "cidc-dfci-staging" }}
-          service_account_key: ${{ env.IS_PROD && secrets.GCP_SA_KEY_PROD || secrets.GCP_SA_KEY_STAGING }}
+          project_id: ${{ github.ref == 'refs/heads/production' && 'cidc-dfci' || 'cidc-dfci-staging' }}
+          service_account_key: ${{ github.ref == 'refs/heads/production' && secrets.GCP_SA_KEY_PROD || secrets.GCP_SA_KEY_STAGING }}
           export_default_credentials: true
       - name: Deploy ${{ matrix.name }} to Cloud Functions
         run: >
