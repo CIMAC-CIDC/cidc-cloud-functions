@@ -34,6 +34,22 @@ To install and configure pre-commit hooks>
 pre-commit install
 ```
 
+### Running locally
+
+To start our hand-rolled local emulator:
+
+```bash
+python main.py
+```
+
+This starts up a Flask HTTP server that can simulate pubsub publish events and trigger cloud functions appropriately. E.g., to simulate publishing to the `uploads` pubsub topic:
+
+```bash
+curl http://localhost:3001/projects/cidc-dfci-staging/topics/uploads -d "data=< base64-encoded pubsub message>"
+```
+
+If you add a new cloud function, you'll need to add it to the local emulator by hand.
+
 ### Testing
 
 To run the tests
