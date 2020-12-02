@@ -112,36 +112,22 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 copy_from_upload_to_data_bucket, url_bundles
             )
 
-        downloadable_files = []
-        metadata_with_urls = job.metadata_patch
+        metadata_patch = job.metadata_patch
         logger.info("Adding artifact metadata to metadata patch.")
-        for destination_object, url_bundle in zip(destination_objects, url_bundles):
-            with saved_failure_status(job, session):
-                # Add the artifact info to the metadata patch
-                logger.debug(f"Adding artifact {destination_object.name} to metadata.")
-                (
-                    metadata_with_urls,
-                    artifact_metadata,
-                    additional_metadata,
-                ) = TrialMetadata.merge_gcs_artifact(
-                    metadata_with_urls,
-                    job.upload_type,
-                    url_bundle.artifact_uuid,
-                    destination_object,
-                )
-
-            # Hang on to the artifact metadata
-            logger.debug(f"artifact metadata: {artifact_metadata}")
-            downloadable_files.append((artifact_metadata, additional_metadata))
+        metadata_patch, downloadable_files = TrialMetadata.merge_gcs_artifacts(
+            metadata_patch,
+            job.upload_type,
+            zip([ub.artifact_uuid for ub in url_bundles], destination_objects),
+        )
 
         # Add metadata for this upload to the database
         logger.info(
             "Merging metadata from upload %d into trial %s: " % (job.id, trial_id),
-            metadata_with_urls,
+            metadata_patch,
         )
         with saved_failure_status(job, session):
             trial = TrialMetadata.patch_assays(
-                trial_id, metadata_with_urls, session=session
+                trial_id, metadata_patch, session=session
             )
 
         # Save downloadable files to the database
@@ -184,7 +170,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             )
 
         # Update the job metadata to include artifacts
-        job.metadata_patch = metadata_with_urls
+        job.metadata_patch = metadata_patch
 
         # Making files downloadable by a specified biofx analysis team group
         assay_prefix = job.upload_type.split("_")[0]  # 'wes_bam' -> 'wes'
