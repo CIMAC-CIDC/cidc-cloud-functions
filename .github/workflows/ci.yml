@@ -68,10 +68,10 @@ jobs:
           service_account_key: ${{ github.ref == 'refs/heads/production' && secrets.GCP_SA_KEY_PROD || secrets.GCP_SA_KEY_STAGING }}
           export_default_credentials: true
       - name: Deploy ${{ matrix.name }} to Cloud Functions
-        run: >
-          gcloud functions deploy ${{ matrix.name }}
-            --trigger-topic ${{ matrix.topic }}
-            --env-vars-file ${{ matrix.envfile }}
-            --timeout ${{ matrix.timeout }}
-            --memory ${{ matrix.memory }}
+        run: |
+          gcloud functions deploy ${{ matrix.name }} \
+            --trigger-topic ${{ matrix.topic }} \
+            --env-vars-file ${{ matrix.envfile }} \
+            --timeout ${{ matrix.timeout }} \
+            --memory ${{ matrix.memory }} \
             --runtime python37
