@@ -1,9 +1,9 @@
 # cidc-cloud-functions
 
-| Environment | Branch                                                                           | Status                                                                                                                                                |
-| ----------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| production  | [production](https://github.com/CIMAC-CIDC/cidc-cloud-functions/tree/production) | [![Build Status](https://travis-ci.com/CIMAC-CIDC/cidc-cloud-functions.svg?branch=production)](https://travis-ci.com/CIMAC-CIDC/cidc-cloud-functions) |
-| staging     | [master](https://github.com/CIMAC-CIDC/cidc-cloud-functions)                     | [![Build Status](https://travis-ci.com/CIMAC-CIDC/cidc-cloud-functions.svg?branch=master)](https://travis-ci.com/CIMAC-CIDC/cidc-cloud-functions)     |
+| Environment | Branch                                                                           | Status                                                                                                                                       |
+| ----------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| production  | [production](https://github.com/CIMAC-CIDC/cidc-cloud-functions/tree/production) | ![continuous integration](https://github.com/CIMAC-CIDC/cidc-cloud-functions/workflows/Continuous%20Integration/badge.svg?branch=production) |
+| staging     | [master](https://github.com/CIMAC-CIDC/cidc-cloud-functions)                     | ![continuous integration](https://github.com/CIMAC-CIDC/cidc-cloud-functions/workflows/Continuous%20Integration/badge.svg?branch=master)     |
 
 Google Cloud Functions for carrying out event-driven tasks in the CIDC.
 
@@ -34,9 +34,25 @@ To install and configure pre-commit hooks>
 pre-commit install
 ```
 
+### Running locally
+
+To start our hand-rolled local emulator:
+
+```bash
+python main.py
+```
+
+This starts up a Flask HTTP server that can simulate pubsub publish events and trigger cloud functions appropriately. E.g., to simulate publishing to the `uploads` pubsub topic:
+
+```bash
+curl http://localhost:3001/projects/cidc-dfci-staging/topics/uploads -d "data=< base64-encoded pubsub message>"
+```
+
+If you add a new cloud function, you'll need to add it to the local emulator by hand.
+
 ### Testing
 
-GCP doesn't yet provide a Cloud Functions local emulator for Python, so there isn't a way to run these function as part of a local instance of the system. As such, writing/running tests for functions based on the [Cloud Functions docs](https://cloud.google.com/functions/docs/) is our best bet for experimenting with the functions locally. To run the tests:
+To run the tests
 
 ```bash
 pytest
@@ -46,28 +62,17 @@ pytest
 
 #### CI/CD
 
-This project uses [Travis CI](https://travis-ci.org/) for continuous integration and deployment. To deploy an update to this application, follow these steps:
+This project uses [GitHub Actions](https://docs.github.com/en/free-pro-team@latest/actions) for continuous integration and deployment. To deploy an update to this application, follow these steps:
 
 1. Create a new branch locally, commit updates to it, then push that branch to this repository.
-2. Make a pull request from your branch into `master`. This will trigger Travis to run various tests and report back success or failure. You can't merge your PR until it passes the Travis build, so if the build fails, you'll probably need to fix your code.
-3. Once the Travis build passes (and pending approval from collaborators reviewing the PR), merge your changes into `master`. This will trigger Travis to re-run tests on the code then deploy changes to the staging project.
-4. Try out your deployed changes on the staging API once the Travis build completes.
+2. Make a pull request from your branch into `master`. This will trigger GitHub Actions to run various tests and report back success or failure. You can't merge your PR until it passes the build, so if the build fails, you'll probably need to fix your code.
+3. Once the build passes (and pending approval from collaborators reviewing the PR), merge your changes into `master`. This will trigger GitHub Actions to re-run tests on the code then deploy changes to the staging project.
+4. Try out your deployed changes in the staging environment once the build completes.
 5. If you're satisfied that staging should be deployed into production, make a PR from `master` into `production`.
-6. Once the PR build passes, merge `master` into `production`. This will trigger Travis to deploy the changes on staging to the production project.
+6. Once the PR build passes, merge `master` into `production`. This will trigger GitHub Actions to deploy the changes on staging to the production project.
 
-For more information or to update the Travis pipeline, check out the configuration in `.travis.yml`.
+For more information or to update the CI workflow, check out the configuration in `.github/workflows/ci.yml`.
 
 #### By Hand
 
-While it's recommended that the functions in this repo be deployed using the Travis CI pipeline, you might find that you need to deploy a function by hand. The `deploy/` directtory contains a set of convenience scripts to help you do so.
-
-To deploy a pub/sub-triggered function, run:
-
-```bash
-gcloud config set project $PROJECT
-bash deploy/pubsub.sh $ENTRYPOINT $TOPIC $ENVFILE
-```
-
-where `$PROJECT` is the project you want to deploy to, `$ENTRYPOINT` is the name of the function in your code, `$TOPIC` is the pub/sub topic this function subscribes to, and `$ENVFILE` is the path to the local file containing environment variable configurations for this function.
-
-As functions with other types of triggers are added (e.g., HTTP or Cloud SQL), other convenience scripts will be added too, but if you'd rather use `gcloud` directly, `gcloud functions deploy --help` is a great place to start.
+While it's recommended that the functions in this repo be deployed automatically using GitHub Actions, you might find that you need to deploy a function by hand. To do so, checkout the [Google Cloud Functions docs](https://cloud.google.com/sdk/gcloud/reference/functions/deploy).
