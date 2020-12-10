@@ -1,6 +1,6 @@
 """Helpers for working with Cloud Functions."""
 import base64
-import datetime
+from datetime import datetime
 from contextlib import contextmanager
 from io import BytesIO, StringIO
 from typing import NamedTuple, Union
@@ -10,7 +10,7 @@ from google.cloud import storage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from .settings import SQLALCHEMY_DATABASE_URI, FLASK_ENV, GOOGLE_DATA_BUCKET
+from .settings import SQLALCHEMY_DATABASE_URI, ENV, GOOGLE_DATA_BUCKET
 
 _engine = None
 
@@ -96,7 +96,7 @@ def _download_blob_bytes(object_name: str) -> bytes:
 
 def upload_to_data_bucket(object_name: str, data: Union[str, bytes]) -> storage.Blob:
     """Upload data to blob called `object_name` in the CIDC data bucket."""
-    if FLASK_ENV == "development":
+    if ENV == "dev":
         fname = object_name.replace("/", "_")
         print(f"writing {fname}")
         with open(fname, "w") as f:

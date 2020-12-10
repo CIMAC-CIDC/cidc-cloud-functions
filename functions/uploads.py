@@ -18,7 +18,7 @@ from cidc_api.models import (
 from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
 
 from .settings import (
-    FLASK_ENV,
+    ENV,
     GOOGLE_DATA_BUCKET,
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
@@ -35,7 +35,7 @@ from .util import (
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
-logger.setLevel(logging.DEBUG if FLASK_ENV == "development" else logging.INFO)
+logger.setLevel(logging.DEBUG if ENV == "dev" else logging.INFO)
 
 THREADPOOL_THREADS = 16
 
@@ -193,7 +193,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
             )
 
         # Trigger post-processing on entire upload
-        _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC).result()
+        report = _encode_and_publish(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC)
+        if report:
+            report.result()
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
@@ -261,7 +263,7 @@ def _gcs_copy(
     source_bucket: str, source_object: str, target_bucket: str, target_object: str
 ):
     """Copy a GCS object from one bucket to another"""
-    if FLASK_ENV == "development":
+    if ENV == "dev":
         logger.debug(
             f"Would've copied gs://{source_bucket}/{source_object} gs://{target_bucket}/{target_object}"
         )
@@ -292,7 +294,7 @@ def _get_bucket_and_blob(
 ) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
     """Get GCS metadata for a storage bucket and blob"""
 
-    if FLASK_ENV == "development":
+    if ENV == "dev":
         logger.debug(
             f"Getting local {object_name} instead of gs://{bucket_name}/{object_name}"
         )
