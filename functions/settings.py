@@ -20,7 +20,7 @@ if not GCP_PROJECT:
     GCP_PROJECT = os.environ.get("GCP_PROJECT")
 
 TESTING = os.environ.get("TESTING")
-FLASK_ENV = os.environ.get("FLASK_ENV")
+ENV = os.environ.get("ENV")
 secrets = get_secrets_manager(TESTING)
 
 # GCP config
