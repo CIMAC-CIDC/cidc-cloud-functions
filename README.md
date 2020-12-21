@@ -17,6 +17,7 @@ Google Cloud Functions for carrying out event-driven tasks in the CIDC.
   - `store_auth0_logs`: pull logs for the past day from Auth0 and store them in Google Cloud Storage.
   - `send_email`: when an email is published to the "emails" topic, sends the email using the SendGrid API.
   - `disable_inactive_users`: find users who appear to have become inactive, and disable their accounts.
+  - `refresh_download_permissions`: extend GCS IAM permission expiry dates for users who were active in the past day.
 
 ## Development
 
