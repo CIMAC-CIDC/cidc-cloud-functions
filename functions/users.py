@@ -18,15 +18,18 @@ def disable_inactive_users(*args):
 def refresh_download_permissions(*args):
     """
     Extend the expiry date for GCS download permissions belonging to users
-    who accessed the system today. If we don't do this, users whose accounts
-    are still active might lose GCS download permission prematurely.
+    who accessed the system in the last 2 (or so) days. If we don't do this, 
+    users whose accounts are still active might lose GCS download permission prematurely.
     """
     active_today = lambda q: q.filter(
-        Users._accessed > datetime.today() - timedelta(days=1)
+        # Provide a 3 day window to ensure we don't miss anyone
+        # if, e.g., this function fails to run on a certain day.
+        Users._accessed
+        > datetime.today() - timedelta(days=3)
     )
     with sqlalchemy_session() as session:
         active_users = Users.list(
-            page_size=Users.count(session=session),
+            page_size=Users.count(session=session, filter_=active_today),
             session=session,
             filter_=active_today,
         )
