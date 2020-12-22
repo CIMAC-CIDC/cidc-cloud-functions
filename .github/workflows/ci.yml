@@ -49,6 +49,10 @@ jobs:
             topic: daily_cron
             timeout: 120
             memory: 256
+          - name: refresh_download_permissions
+            topic: daily_cron
+            timeout: 120
+            memory: 256
           - name: vis_preprocessing
             topic: artifact_upload
             timeout: 540
