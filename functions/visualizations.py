@@ -7,7 +7,7 @@ import pandas as pd
 from clustergrammer import Network as CGNetwork
 from openpyxl import load_workbook
 from google.cloud import storage
-from cidc_api.models import DownloadableFiles, prism
+from cidc_api.models import DownloadableFiles, prism, TrialMetadata
 
 from .settings import GOOGLE_DATA_BUCKET
 from .util import (
@@ -79,7 +79,86 @@ def _get_transforms() -> dict:
     return {
         "clustergrammer": _ClustergrammerTransform(),
         "ihc_combined_plot": _ihc_combined_transform,
+        "additional_metadata": _add_antibody_metadata,
     }
+
+
+def _add_antibody_metadata(
+    file_record: DownloadableFiles, metadata_df: pd.DataFrame
+) -> Optional[dict]:
+    """
+    Pseudo transformation to add antibody data to the DownloadableFiles.additional_metadata JSON
+    Only for upload_type in [cytof, elisa, ihc, micsss, and mif]
+    """
+    upload_type = file_record.upload_type.lower()
+    if upload_type not in ["cytof", "elisa", "ihc", "micsss", "mif"]:
+        return None
+
+    file_md = file_record.additional_metadata
+
+    ct_md = TrialMetadata.find_by_trial_id(file_record.trial_id).metadata_json
+    assay_md = ct_md.get("assays", {}).get(file_record.upload_type.lower(), {})
+
+    # differences in data model
+    if upload_type == "cytof":
+        key = "cytof_antibodies"
+    elif upload_type in ["elisa", "mif"]:
+        key = "antibodies"
+    elif upload_type in ["ihc", "micsss"]:
+        key = "antibody"
+    else:  # shouldn't get here
+        return None
+
+    antibody_md = assay_md.get(key)
+
+    if not antibody_md:
+        return None
+
+    if upload_type in ["cytof", "elisa"]:
+        antibodies = []
+        for ab in antibody_md:
+            if ab["usage"] != "Ignored":
+                entry = f"{ab['stain_type'].lower().split()[0]} {ab['isotope']}-{ab['antibody']}"
+                if ab.get("clone"):
+                    entry += f" ({ab['clone']})"
+                antibodies.append(entry)
+
+    elif upload_type == "ihc":
+        antibody = antibody_md["antibody"]
+        if antibody_md.get("clone"):
+            antibody += f" ({antibody_md['clone']})"
+
+    elif upload_type == "micsss":
+        antibodies = []
+        for ab in antibody_md:
+            entry = ab["antibody"]
+            if ab.get("clone"):
+                entry += f" ({ab['clone']})"
+            antibodies.append(entry)
+
+    elif upload_type == "mif":
+        antibodies = []
+        for ab in antibody_md:
+            if ab.get("export_name"):
+                entry = ab["export_name"]
+            else:
+                entry = ab["antibody"] + " ("
+                if ab.get("clone"):
+                    entry += ab["clone"] + " - "
+                entry += str(ab["fluor_wavelength"]) + ")"
+
+            antibodies.append(entry)
+
+    else:  # shouldn't get here
+        return None
+
+    if upload_type == "ihc":
+        # for ihc, is only a single antibody
+        file_md["ihc.antibody"] = antibody
+    else:
+        file_md[f"{upload_type}.antibodies"] = ", ".join(antibodies)
+
+    return file_md
 
 
 def _ihc_combined_transform(
