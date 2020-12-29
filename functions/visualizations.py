@@ -90,75 +90,108 @@ def _add_antibody_metadata(
     Pseudo transformation to add antibody data to the DownloadableFiles.additional_metadata JSON
     Only for upload_type in [cytof, elisa, ihc, micsss, and mif]
     """
+    transforms = {
+        "cytof" : _cytof_antibody_md,
+        "elisa" : _elisa_antibody_md,
+        "ihc" : _ihc_antibody_md,
+        "micsss" : _micsss_antibody_md,
+        "mif" : _mif_antibody_md
+    }
     upload_type = file_record.upload_type.lower()
-    if upload_type not in ["cytof", "elisa", "ihc", "micsss", "mif"]:
+    if upload_type not in transforms.keys():
+        return None
+
+
+    ct_md = TrialMetadata.find_by_trial_id(file_record.trial_id).metadata_json
+    assay_md = ct_md.get("assays", {}).get(upload_type, {})
+
+    md = transforms[upload_type](assay_md)
+    if md is None: # no antibody metadata on the assay
         return None
 
     file_md = file_record.additional_metadata
+    if upload_type == "ihc":
+        # for ihc, is only a single antibody
+        file_md["ihc.antibody"] = md
+    else:
+        file_md[f"{upload_type}.antibodies"] = md
 
-    ct_md = TrialMetadata.find_by_trial_id(file_record.trial_id).metadata_json
-    assay_md = ct_md.get("assays", {}).get(file_record.upload_type.lower(), {})
+    return file_md
 
-    # differences in data model
-    if upload_type == "cytof":
-        key = "cytof_antibodies"
-    elif upload_type in ["elisa", "mif"]:
-        key = "antibodies"
-    elif upload_type in ["ihc", "micsss"]:
-        key = "antibody"
-    else:  # shouldn't get here
-        return None
-
-    antibody_md = assay_md.get(key)
-
+def _cytof_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("cytof_antibodies")
     if not antibody_md:
         return None
 
-    if upload_type in ["cytof", "elisa"]:
-        antibodies = []
-        for ab in antibody_md:
-            if ab["usage"] != "Ignored":
-                entry = f"{ab['stain_type'].lower().split()[0]} {ab['isotope']}-{ab['antibody']}"
-                if ab.get("clone"):
-                    entry += f" ({ab['clone']})"
-                antibodies.append(entry)
-
-    elif upload_type == "ihc":
-        antibody = antibody_md["antibody"]
-        if antibody_md.get("clone"):
-            antibody += f" ({antibody_md['clone']})"
-
-    elif upload_type == "micsss":
-        antibodies = []
-        for ab in antibody_md:
-            entry = ab["antibody"]
+    antibodies = []
+    for ab in antibody_md:
+        if ab["usage"] != "Ignored":
+            entry = f"{ab['stain_type'].lower().split()[0]} {ab['isotope']}-{ab['antibody']}"
             if ab.get("clone"):
                 entry += f" ({ab['clone']})"
             antibodies.append(entry)
 
-    elif upload_type == "mif":
-        antibodies = []
-        for ab in antibody_md:
-            if ab.get("export_name"):
-                entry = ab["export_name"]
-            else:
-                entry = ab["antibody"] + " ("
-                if ab.get("clone"):
-                    entry += ab["clone"] + " - "
-                entry += str(ab["fluor_wavelength"]) + ")"
+    return ", ".join(antibodies)
 
-            antibodies.append(entry)
 
-    else:  # shouldn't get here
+def _elisa_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibodies")
+    if not antibody_md:
         return None
 
-    if upload_type == "ihc":
-        # for ihc, is only a single antibody
-        file_md["ihc.antibody"] = antibody
-    else:
-        file_md[f"{upload_type}.antibodies"] = ", ".join(antibodies)
+    antibodies = []
+    for ab in antibody_md:
+        if ab["usage"] != "Ignored":
+            entry = f"{ab['stain_type'].lower().split()[0]} {ab['isotope']}-{ab['antibody']}"
+            if ab.get("clone"):
+                entry += f" ({ab['clone']})"
+            antibodies.append(entry)
 
-    return file_md
+    return ", ".join(antibodies)
+
+def _ihc_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibody")
+    if not antibody_md:
+        return None
+
+    antibody = antibody_md["antibody"]
+    if antibody_md.get("clone"):
+        antibody += f" ({antibody_md['clone']})"
+
+    return antibody
+
+def _micsss_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibody")
+    if not antibody_md:
+        return None
+
+    antibodies = []
+    for ab in antibody_md:
+        entry = ab["antibody"]
+        if ab.get("clone"):
+            entry += f" ({ab['clone']})"
+        antibodies.append(entry)
+
+    return ", ".join(antibodies)
+
+def _mif_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibodies")
+    if not antibody_md:
+        return None
+
+    antibodies = []
+    for ab in antibody_md:
+        if ab.get("export_name"):
+            entry = ab["export_name"]
+        else:
+            entry = ab["antibody"] + " ("
+            if ab.get("clone"):
+                entry += ab["clone"] + " - "
+            entry += str(ab["fluor_wavelength"]) + ")"
+
+        antibodies.append(entry)
+
+    return ", ".join(antibodies)
 
 
 def _ihc_combined_transform(

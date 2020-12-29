@@ -77,7 +77,7 @@ def test_cytof_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     get_by_object_url.return_value = cytof_record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
 
-    # Mock GCS call
+    # Mock trial
     ct = MagicMock()
     ct.metadata_json = {
         "assays": {
