@@ -91,22 +91,21 @@ def _add_antibody_metadata(
     Only for upload_type in [cytof, elisa, ihc, micsss, and mif]
     """
     transforms = {
-        "cytof" : _cytof_antibody_md,
-        "elisa" : _elisa_antibody_md,
-        "ihc" : _ihc_antibody_md,
-        "micsss" : _micsss_antibody_md,
-        "mif" : _mif_antibody_md
+        "cytof": _cytof_antibody_md,
+        "elisa": _elisa_antibody_md,
+        "ihc": _ihc_antibody_md,
+        "micsss": _micsss_antibody_md,
+        "mif": _mif_antibody_md,
     }
     upload_type = file_record.upload_type.lower()
     if upload_type not in transforms.keys():
         return None
 
-
     ct_md = TrialMetadata.find_by_trial_id(file_record.trial_id).metadata_json
     assay_md = ct_md.get("assays", {}).get(upload_type, {})
 
     md = transforms[upload_type](assay_md)
-    if md is None: # no antibody metadata on the assay
+    if md is None:  # no antibody metadata on the assay
         return None
 
     file_md = file_record.additional_metadata
@@ -117,6 +116,7 @@ def _add_antibody_metadata(
         file_md[f"{upload_type}.antibodies"] = md
 
     return file_md
+
 
 def _cytof_antibody_md(assay_md: dict) -> Optional[str]:
     antibody_md = assay_md.get("cytof_antibodies")
@@ -149,6 +149,7 @@ def _elisa_antibody_md(assay_md: dict) -> Optional[str]:
 
     return ", ".join(antibodies)
 
+
 def _ihc_antibody_md(assay_md: dict) -> Optional[str]:
     antibody_md = assay_md.get("antibody")
     if not antibody_md:
@@ -159,6 +160,7 @@ def _ihc_antibody_md(assay_md: dict) -> Optional[str]:
         antibody += f" ({antibody_md['clone']})"
 
     return antibody
+
 
 def _micsss_antibody_md(assay_md: dict) -> Optional[str]:
     antibody_md = assay_md.get("antibody")
@@ -173,6 +175,7 @@ def _micsss_antibody_md(assay_md: dict) -> Optional[str]:
         antibodies.append(entry)
 
     return ", ".join(antibodies)
+
 
 def _mif_antibody_md(assay_md: dict) -> Optional[str]:
     antibody_md = assay_md.get("antibodies")
