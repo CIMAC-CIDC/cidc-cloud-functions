@@ -1,11 +1,4 @@
 from google.cloud import storage
-from cidc_api.models import (
-    DownloadableFiles,
-    TrialMetadata,
-    UploadJobs,
-    UploadJobStatus,
-    unprism,
-)
 from collections import namedtuple
 from datetime import datetime
 
@@ -17,6 +10,14 @@ from .util import (
     make_pseudo_blob,
     get_blob_as_stream as fetch_artifact,
     upload_to_data_bucket,
+)
+
+from cidc_api.models import (
+    DownloadableFiles,
+    TrialMetadata,
+    UploadJobs,
+    UploadJobStatus,
+    unprism,
 )
 
 
