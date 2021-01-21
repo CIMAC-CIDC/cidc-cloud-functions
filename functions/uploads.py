@@ -6,17 +6,6 @@ from contextlib import contextmanager
 from typing import Optional, Tuple, NamedTuple
 from datetime import datetime, timedelta
 
-from flask import jsonify
-from google.cloud import storage
-from cidc_api.models import (
-    UploadJobs,
-    TrialMetadata,
-    DownloadableFiles,
-    UploadJobStatus,
-    prism,
-)
-from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
-
 from .settings import (
     ENV,
     GOOGLE_DATA_BUCKET,
@@ -32,6 +21,17 @@ from .util import (
     sqlalchemy_session,
     make_pseudo_blob,
 )
+
+from flask import jsonify
+from google.cloud import storage
+from cidc_api.models import (
+    UploadJobs,
+    TrialMetadata,
+    DownloadableFiles,
+    UploadJobStatus,
+    prism,
+)
+from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
