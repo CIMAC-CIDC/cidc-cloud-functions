@@ -301,6 +301,10 @@ def _get_bucket_and_blob(
         return (bucket_name, make_pseudo_blob(object_name))
 
     storage_client = get_storage_client()
+    try:
+        logger.info(f"GCP token expiry: {storage_client._credentials.expiry}")
+    except Exception:
+        pass
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
