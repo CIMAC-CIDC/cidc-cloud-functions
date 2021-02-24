@@ -24,6 +24,7 @@ from .util import (
 
 from flask import jsonify
 from google.cloud import storage
+from google.auth.exceptions import RefreshError
 from cidc_api.models import (
     UploadJobs,
     TrialMetadata,
@@ -42,10 +43,29 @@ THREADPOOL_THREADS = 16
 _storage_client = None
 
 
-def get_storage_client():
+def get_storage_client(refresh=False):
+    """Storage client is a global resource because
+    it can be shared across instances of this function in google cloud.
+    The refresh parameter can be used to force a new client connection
+    incase the credentials are stale."""
     global _storage_client
-    if _storage_client is None:
+
+    # this attempts to log when the token will expire
+    try:
+        logger.info(f"GCP token expiry before refresh: {_storage_client._credentials.expiry}")
+    except Exception:
+        pass
+
+    # do the instantiation or refresh
+    if _storage_client is None or refresh == True:
         _storage_client = storage.Client()
+
+    # log after this function (will be same if no refresh)
+    try:
+        logger.info(f"GCP token expiry after refresh: {_storage_client._credentials.expiry}")
+    except Exception:
+        pass
+
     return _storage_client
 
 
@@ -300,11 +320,28 @@ def _get_bucket_and_blob(
         )
         return (bucket_name, make_pseudo_blob(object_name))
 
+    # get the storage client
     storage_client = get_storage_client()
-    try:
-        logger.info(f"GCP token expiry: {storage_client._credentials.expiry}")
-    except Exception:
-        pass
-    bucket = storage_client.get_bucket(bucket_name)
+
+    # get the bucket and blob of interest.
+    # try to refresh 3 times if necessary
+    success = False
+    last_err = False
+    for i in range(3):
+        try:
+            bucket = storage_client.get_bucket(bucket_name)
+            success = True
+        except RefreshError as e:
+            # log the error as a warning
+            logging.warning(e)
+            last_err = e
+
+            # try to refresh credentials
+            storage_client = get_storage_client(refresh=True)
+
+    # if this didn't succeced the following will fail.
+    if not success: raise last_err
+
+    # get the blob and return it 
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
