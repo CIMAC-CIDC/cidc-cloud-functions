@@ -101,7 +101,10 @@ def _add_antibody_metadata(
     if upload_type not in transforms.keys():
         return None
 
-    ct_md = TrialMetadata.find_by_trial_id(file_record.trial_id).metadata_json
+    with sqlalchemy_session() as session:
+        ct_md = TrialMetadata.find_by_trial_id(
+            file_record.trial_id, session=session
+        ).metadata_json
     assay_md = ct_md.get("assays", {}).get(upload_type, {})
 
     md = transforms[upload_type](assay_md)
