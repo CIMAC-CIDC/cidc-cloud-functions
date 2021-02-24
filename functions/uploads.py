@@ -52,7 +52,9 @@ def get_storage_client(refresh=False):
 
     # this attempts to log when the token will expire
     try:
-        logger.info(f"GCP token expiry before refresh: {_storage_client._credentials.expiry}")
+        logger.info(
+            f"GCP token expiry before refresh: {_storage_client._credentials.expiry}"
+        )
     except Exception:
         pass
 
@@ -62,7 +64,9 @@ def get_storage_client(refresh=False):
 
     # log after this function (will be same if no refresh)
     try:
-        logger.info(f"GCP token expiry after refresh: {_storage_client._credentials.expiry}")
+        logger.info(
+            f"GCP token expiry after refresh: {_storage_client._credentials.expiry}"
+        )
     except Exception:
         pass
 
@@ -340,8 +344,9 @@ def _get_bucket_and_blob(
             storage_client = get_storage_client(refresh=True)
 
     # if this didn't succeced the following will fail.
-    if not success: raise last_err
+    if not success:
+        raise last_err
 
-    # get the blob and return it 
+    # get the blob and return it
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob
