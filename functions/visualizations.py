@@ -102,7 +102,9 @@ def _add_antibody_metadata(
         return None
 
     with sqlalchemy_session() as session:
-        ct_md = TrialMetadata.find_by_trial_id(file_record.trial_id, session=session).metadata_json
+        ct_md = TrialMetadata.find_by_trial_id(
+            file_record.trial_id, session=session
+        ).metadata_json
         assay_md = ct_md.get("assays", {}).get(upload_type, {})
 
     md = transforms[upload_type](assay_md)
