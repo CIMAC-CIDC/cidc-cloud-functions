@@ -105,7 +105,17 @@ def _add_antibody_metadata(
         ct_md = TrialMetadata.find_by_trial_id(
             file_record.trial_id, session=session
         ).metadata_json
-    assay_md = ct_md.get("assays", {}).get(upload_type, {})
+
+    assay_instances = ct_md.get("assays", {}).get(upload_type, [])
+    # asserting that this will return a list, which is not necessarily true
+    # check cidc-schemas/schemas/assays/components/available_assays.json
+
+    if isinstance(assay_instances, dict):
+        # only exception to list, eg olink
+        assay_md = assay_instances
+    else:
+        # ASSUME that this is the most recent assay
+        assay_md = assay_instances[-1] if len(assay_instances) else {}
 
     md = transforms[upload_type](assay_md)
     if md is None:  # no antibody metadata on the assay

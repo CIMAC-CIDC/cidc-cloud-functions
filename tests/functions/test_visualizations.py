@@ -81,24 +81,26 @@ def test_cytof_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     ct = MagicMock()
     ct.metadata_json = {
         "assays": {
-            "cytof": {
-                "cytof_antibodies": [
-                    {"usage": "Ignored"},
-                    {
-                        "usage": "Used",
-                        "stain_type": "Surface Stain",
-                        "isotope": "000Foo",
-                        "antibody": "Bar",
-                        "clone": "Nx/xxx",
-                    },
-                    {
-                        "usage": "Analysis Only",
-                        "stain_type": "Intracellular",
-                        "isotope": "001Foo",
-                        "antibody": "Baz",
-                    },
-                ]
-            }
+            "cytof": [
+                {
+                    "cytof_antibodies": [
+                        {"usage": "Ignored"},
+                        {
+                            "usage": "Used",
+                            "stain_type": "Surface Stain",
+                            "isotope": "000Foo",
+                            "antibody": "Bar",
+                            "clone": "Nx/xxx",
+                        },
+                        {
+                            "usage": "Analysis Only",
+                            "stain_type": "Intracellular",
+                            "isotope": "001Foo",
+                            "antibody": "Baz",
+                        },
+                    ]
+                }
+            ]
         }
     }
     find_by_trial_id = MagicMock()
@@ -135,24 +137,26 @@ def test_elisa_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     ct = MagicMock()
     ct.metadata_json = {
         "assays": {
-            "elisa": {
-                "antibodies": [
-                    {"usage": "Ignored"},
-                    {
-                        "usage": "Used",
-                        "stain_type": "Surface Stain",
-                        "isotope": "000Foo",
-                        "antibody": "Bar",
-                        "clone": "Nx/xxx",
-                    },
-                    {
-                        "usage": "Analysis Only",
-                        "stain_type": "Intracellular",
-                        "isotope": "001Foo",
-                        "antibody": "Baz",
-                    },
-                ]
-            }
+            "elisa": [
+                {
+                    "antibodies": [
+                        {"usage": "Ignored"},
+                        {
+                            "usage": "Used",
+                            "stain_type": "Surface Stain",
+                            "isotope": "000Foo",
+                            "antibody": "Bar",
+                            "clone": "Nx/xxx",
+                        },
+                        {
+                            "usage": "Analysis Only",
+                            "stain_type": "Intracellular",
+                            "isotope": "001Foo",
+                            "antibody": "Baz",
+                        },
+                    ]
+                }
+            ]
         }
     }
     find_by_trial_id = MagicMock()
@@ -188,7 +192,7 @@ def test_ihc_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     # Mock GCS call
     ct = MagicMock()
     ct.metadata_json = {
-        "assays": {"ihc": {"antibody": {"antibody": "Bar", "clone": "Nx/xxx"}}}
+        "assays": {"ihc": [{"antibody": {"antibody": "Bar", "clone": "Nx/xxx"}}]}
     }
     find_by_trial_id = MagicMock()
     find_by_trial_id.return_value = ct
@@ -224,12 +228,14 @@ def test_micsss_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     ct = MagicMock()
     ct.metadata_json = {
         "assays": {
-            "micsss": {
-                "antibody": [
-                    {"antibody": "Bar", "clone": "Nx/xxx"},
-                    {"antibody": "Baz"},
-                ]
-            }
+            "micsss": [
+                {
+                    "antibody": [
+                        {"antibody": "Bar", "clone": "Nx/xxx"},
+                        {"antibody": "Baz"},
+                    ]
+                }
+            ]
         }
     }
     find_by_trial_id = MagicMock()
@@ -266,13 +272,15 @@ def test_mif_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     ct = MagicMock()
     ct.metadata_json = {
         "assays": {
-            "mif": {
-                "antibodies": [
-                    {"export_name": "Foo"},
-                    {"antibody": "Bar", "clone": "Nx/xxx", "fluor_wavelength": 500},
-                    {"antibody": "Baz", "fluor_wavelength": 500},
-                ]
-            }
+            "mif": [
+                {
+                    "antibodies": [
+                        {"export_name": "Foo"},
+                        {"antibody": "Bar", "clone": "Nx/xxx", "fluor_wavelength": 500},
+                        {"antibody": "Baz", "fluor_wavelength": 500},
+                    ]
+                }
+            ]
         }
     }
     find_by_trial_id = MagicMock()
