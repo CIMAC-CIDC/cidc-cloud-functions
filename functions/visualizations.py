@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 import pandas as pd
 from clustergrammer import Network as CGNetwork
+from deepdiff import DeepSearch
 from openpyxl import load_workbook
 from google.cloud import storage
 from cidc_api.models import DownloadableFiles, prism, TrialMetadata
@@ -105,7 +106,43 @@ def _add_antibody_metadata(
         ct_md = TrialMetadata.find_by_trial_id(
             file_record.trial_id, session=session
         ).metadata_json
-    assay_md = ct_md.get("assays", {}).get(upload_type, {})
+
+    assay_instances = ct_md.get("assays", {}).get(upload_type, [])
+    # asserting that this will return a list, which is not necessarily true
+    # check cidc-schemas/schemas/assays/components/available_assays.json
+
+    if isinstance(assay_instances, dict):
+        # only exception to list, eg olink
+        assay_md = assay_instances
+    elif isinstance(assay_instances, list):
+        ds = DeepSearch(assay_instances, file_record.object_url)
+        if "matched_values" in ds:
+            if len(ds["matched_values"]) != 1:
+                raise Exception(
+                    f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: {file_record.object_url} is not unique in ct['assays'][{upload_type}]"
+                )
+
+            # matched_value = ["root[path][to][matching]"]
+            matching_path = list(ds["matched_values"])[0]
+            index = matching_path.split("[")[1].split("]")[0]
+            if index.isdigit():  # not technically needed, see below
+                assay_md = assay_instances[int(index)]
+            else:
+                # technically can't get here because DeepSearch on assay_instances: list has return bounded to "root[ int ]..."
+                # if some error occurs, need to error or need assay_md defined
+                # testing this doesn't seem necessary, but would likely need patching DeepSearch
+                try:
+                    assay_md = assay_instances[index]  # should work for all root[...]
+                except:
+                    # add a bit of actual context, as any IndexError thrown would not be useful
+                    raise Exception(
+                        f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: unable to search ct['assays']['{upload_type}']"
+                    )
+
+    else:
+        raise TypeError(
+            f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: ct['assays']['{upload_type}'] is {type(assay_instances).__name__} not list, dict"
+        )
 
     md = transforms[upload_type](assay_md)
     if md is None:  # no antibody metadata on the assay
