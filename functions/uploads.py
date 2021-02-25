@@ -237,8 +237,8 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
         f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
     )
 
-    storage_client = get_storage_client()
-    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
+    # get the bucket
+    bucket = _get_bucket_with_client_refresh(GOOGLE_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
     policy = bucket.get_iam_policy(requested_policy_version=3)
@@ -313,6 +313,30 @@ def _gcs_copy(
     return to_object
 
 
+def _get_bucket_with_client_refresh(bucket_name):
+    """attempt to get bucket first using googlel cloud storage
+    connection, if that fails due to stale token, recreate the
+    connection and try again"""
+
+    # get the storage client
+    storage_client = get_storage_client()
+
+    # get the bucket, if this fails try refreshing the client
+    try:
+        bucket = storage_client.get_bucket(bucket_name)
+    except RefreshError as e:
+        # log the error as a warning
+        logging.warning(e)
+
+        # try to refresh credentials
+        storage_client = get_storage_client(refresh=True)
+
+        # re-run the request, will raise error if fails second time
+        bucket = storage_client.get_bucket(bucket_name)
+
+    return bucket
+
+
 def _get_bucket_and_blob(
     bucket_name: str, object_name: Optional[str]
 ) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
@@ -324,28 +348,8 @@ def _get_bucket_and_blob(
         )
         return (bucket_name, make_pseudo_blob(object_name))
 
-    # get the storage client
-    storage_client = get_storage_client()
-
-    # get the bucket and blob of interest.
-    # try to refresh 3 times if necessary
-    success = False
-    last_err = False
-    for i in range(3):
-        try:
-            bucket = storage_client.get_bucket(bucket_name)
-            success = True
-        except RefreshError as e:
-            # log the error as a warning
-            logging.warning(e)
-            last_err = e
-
-            # try to refresh credentials
-            storage_client = get_storage_client(refresh=True)
-
-    # if this didn't succeced the following will fail.
-    if not success:
-        raise last_err
+    # get the bucket.
+    bucket = _get_bucket_with_client_refresh(bucket_name)
 
     # get the blob and return it
     blob = bucket.get_blob(object_name) if object_name else None
