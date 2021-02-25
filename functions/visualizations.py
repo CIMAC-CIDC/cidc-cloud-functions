@@ -115,10 +115,7 @@ def _add_antibody_metadata(
         # only exception to list, eg olink
         assay_md = assay_instances
     elif isinstance(assay_instances, list):
-        print(assay_instances)
-        print(file_record)
         ds = DeepSearch(assay_instances, file_record.object_url)
-        print(ds)
         if "matched_values" in ds:
             if len(ds["matched_values"]) != 1:
                 raise Exception(
@@ -128,7 +125,6 @@ def _add_antibody_metadata(
             # matched_value = ["root[path][to][matching]"]
             matching_path = list(ds["matched_values"])[0]
             index = matching_path.split("[")[1].split("]")[0]
-            print(index)
             if index.isnumeric() and float(index) == int(index):
                 assay_md = assay_instances[int(index)]
     else:
