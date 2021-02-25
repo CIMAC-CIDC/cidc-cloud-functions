@@ -125,11 +125,23 @@ def _add_antibody_metadata(
             # matched_value = ["root[path][to][matching]"]
             matching_path = list(ds["matched_values"])[0]
             index = matching_path.split("[")[1].split("]")[0]
-            if index.isnumeric() and float(index) == int(index):
+            if index.isdigit():  # not technically needed, see below
                 assay_md = assay_instances[int(index)]
+            else:
+                # technically can't get here because DeepSearch on assay_instances: list has return bounded to "root[ int ]..."
+                # if some error occurs, need to error or need assay_md defined
+                # testing this doesn't seem necessary, but would likely need patching DeepSearch
+                try:
+                    assay_md = assay_instances[index]  # should work for all root[...]
+                except:
+                    # add a bit of actual context, as any IndexError thrown would not be useful
+                    raise Exception(
+                        f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: unable to search ct['assays'][{upload_type}]"
+                    )
+
     else:
         raise TypeError(
-            f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: ct['assays'][{upload_type}] is {type(assay_instances)!s} not list, dict"
+            f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: ct['assays']['{upload_type}'] is {type(assay_instances).__name__} not list, dict"
         )
 
     md = transforms[upload_type](assay_md)

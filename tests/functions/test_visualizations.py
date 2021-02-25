@@ -14,6 +14,7 @@ from functions.visualizations import (
     _cytof_summary_to_dataframe,
     _npx_to_dataframe,
     _metadata_to_categories,
+    _add_antibody_metadata,
 )
 
 from tests.util import make_pubsub_event
@@ -64,6 +65,31 @@ def test_loading_lazily(monkeypatch, metadata_df):
 
     vis_preprocessing(make_pubsub_event("1"), {})
     get_blob_as_stream.assert_not_called()
+
+
+def test_add_antibody_metadata_validation(monkeypatch, metadata_df):
+    """Test that the validation checks in _add_antibody_metadata throw errors as expected"""
+    record = MagicMock()
+    record.object_url = "foo.txt"
+    record.upload_type = "mif"
+    record.data_format = "CSV"
+
+    ct_typeerror = {"assays": {"mif": 5}}
+    trial_md = MagicMock()
+    trial_md.metadata_json = ct_typeerror
+    get_trial_by_id = MagicMock()
+    get_trial_by_id.return_value = trial_md
+    with monkeypatch.context() as m:
+        m.setattr(TrialMetadata, "find_by_trial_id", get_trial_by_id)
+        with pytest.raises(TypeError, match="Issue loading antibodies"):
+            _add_antibody_metadata(record, metadata_df)
+
+    ct_nonunique = {"assays": {"mif": ["foo.txt", "foo.txt"]}}
+    get_trial_by_id.return_value.metadata_json = ct_nonunique
+    with monkeypatch.context() as m:
+        m.setattr(TrialMetadata, "find_by_trial_id", get_trial_by_id)
+        with pytest.raises(Exception, match="Issue loading antibodies"):
+            _add_antibody_metadata(record, metadata_df)
 
 
 def test_cytof_antibody_metadata_end_to_end(monkeypatch, metadata_df):
