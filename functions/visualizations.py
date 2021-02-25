@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 import pandas as pd
 from clustergrammer import Network as CGNetwork
+from deepdiff import DeepSearch
 from openpyxl import load_workbook
 from google.cloud import storage
 from cidc_api.models import DownloadableFiles, prism, TrialMetadata
@@ -113,9 +114,27 @@ def _add_antibody_metadata(
     if isinstance(assay_instances, dict):
         # only exception to list, eg olink
         assay_md = assay_instances
+    elif isinstance(assay_instances, list):
+        print(assay_instances)
+        print(file_record)
+        ds = DeepSearch(assay_instances, file_record.object_url)
+        print(ds)
+        if "matched_values" in ds:
+            if len(ds["matched_values"]) != 1:
+                raise Exception(
+                    f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: {file_record.object_url} is not unique in ct['assays'][{upload_type}]"
+                )
+
+            # matched_value = ["root[path][to][matching]"]
+            matching_path = list(ds["matched_values"])[0]
+            index = matching_path.split("[")[1].split("]")[0]
+            print(index)
+            if index.isnumeric() and float(index) == int(index):
+                assay_md = assay_instances[int(index)]
     else:
-        # ASSUME that this is the most recent assay
-        assay_md = assay_instances[-1] if len(assay_instances) else {}
+        raise TypeError(
+            f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: ct['assays'][{upload_type}] is {type(assay_instances)!s} not list, dict"
+        )
 
     md = transforms[upload_type](assay_md)
     if md is None:  # no antibody metadata on the assay

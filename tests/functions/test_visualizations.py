@@ -45,7 +45,7 @@ def metadata_df():
 def test_loading_lazily(monkeypatch, metadata_df):
     """Test that files aren't loaded if there are no transformations for them"""
     record = MagicMock()
-    record.object_url = "foo"
+    record.object_url = "foo.txt"
     record.upload_type = "something"
     record.data_format = "CSV"
     get_by_object_url = MagicMock()
@@ -70,7 +70,7 @@ def test_cytof_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     """Test addition of antibody metadata for cytof files"""
     # Mock an CyTOF downloadable file record
     cytof_record = MagicMock()
-    cytof_record.object_url = "foo"
+    cytof_record.object_url = "foo.txt"
     cytof_record.upload_type = "cytof"
     cytof_record.additional_metadata = {"foo": "bar"}
     get_by_object_url = MagicMock()
@@ -98,7 +98,8 @@ def test_cytof_antibody_metadata_end_to_end(monkeypatch, metadata_df):
                             "isotope": "001Foo",
                             "antibody": "Baz",
                         },
-                    ]
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
                 }
             ]
         }
@@ -126,7 +127,7 @@ def test_elisa_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     """Test addition of antibody metadata for ELISA files"""
     # Mock an ELISA downloadable file record
     elisa_record = MagicMock()
-    elisa_record.object_url = "foo"
+    elisa_record.object_url = "foo.txt"
     elisa_record.upload_type = "elisa"
     elisa_record.additional_metadata = {"foo": "bar"}
     get_by_object_url = MagicMock()
@@ -154,7 +155,8 @@ def test_elisa_antibody_metadata_end_to_end(monkeypatch, metadata_df):
                             "isotope": "001Foo",
                             "antibody": "Baz",
                         },
-                    ]
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
                 }
             ]
         }
@@ -182,7 +184,7 @@ def test_ihc_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     """Test addition of antibody metadata for IHC files"""
     # Mock an IHC downloadable file record
     ihc_record = MagicMock()
-    ihc_record.object_url = "foo"
+    ihc_record.object_url = "foo.txt"
     ihc_record.upload_type = "ihc"
     ihc_record.additional_metadata = {"foo": "bar"}
     get_by_object_url = MagicMock()
@@ -192,7 +194,14 @@ def test_ihc_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     # Mock GCS call
     ct = MagicMock()
     ct.metadata_json = {
-        "assays": {"ihc": [{"antibody": {"antibody": "Bar", "clone": "Nx/xxx"}}]}
+        "assays": {
+            "ihc": [
+                {
+                    "antibody": {"antibody": "Bar", "clone": "Nx/xxx"},
+                    "object_url": "foo.txt",  # for DeepSearch
+                }
+            ]
+        }
     }
     find_by_trial_id = MagicMock()
     find_by_trial_id.return_value = ct
@@ -217,7 +226,7 @@ def test_micsss_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     """Test addition of antibody metadata for MICSSS files"""
     # Mock an MICSSS downloadable file record
     micsss_record = MagicMock()
-    micsss_record.object_url = "foo"
+    micsss_record.object_url = "foo.txt"
     micsss_record.upload_type = "micsss"
     micsss_record.additional_metadata = {"foo": "bar"}
     get_by_object_url = MagicMock()
@@ -233,7 +242,8 @@ def test_micsss_antibody_metadata_end_to_end(monkeypatch, metadata_df):
                     "antibody": [
                         {"antibody": "Bar", "clone": "Nx/xxx"},
                         {"antibody": "Baz"},
-                    ]
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
                 }
             ]
         }
@@ -261,7 +271,7 @@ def test_mif_antibody_metadata_end_to_end(monkeypatch, metadata_df):
     """Test addition of antibody metadata for MIF files"""
     # Mock an MIF downloadable file record
     mif_record = MagicMock()
-    mif_record.object_url = "foo"
+    mif_record.object_url = "foo.txt"
     mif_record.upload_type = "mif"
     mif_record.additional_metadata = {"foo": "bar"}
     get_by_object_url = MagicMock()
@@ -278,7 +288,8 @@ def test_mif_antibody_metadata_end_to_end(monkeypatch, metadata_df):
                         {"export_name": "Foo"},
                         {"antibody": "Bar", "clone": "Nx/xxx", "fluor_wavelength": 500},
                         {"antibody": "Baz", "fluor_wavelength": 500},
-                    ]
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
                 }
             ]
         }
@@ -306,7 +317,7 @@ def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
     """Test the IHC combined transform."""
     # Mock an IHC combined downloadable file record
     ihc_record = MagicMock()
-    ihc_record.object_url = "foo"
+    ihc_record.object_url = "foo.txt"
     ihc_record.upload_type = "ihc marker combined"
     ihc_record.data_format = "CSV"
     get_by_object_url = MagicMock()
@@ -363,7 +374,7 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Mock an NPX downloadable file record
     npx_record = MagicMock()
-    npx_record.object_url = "foo"
+    npx_record.object_url = "foo.txt"
     npx_record.data_format = "NPX"
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = npx_record
@@ -424,7 +435,7 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Mock a CyTOF summary downloadable file record
     cytof_record = MagicMock()
-    cytof_record.object_url = "foo"
+    cytof_record.object_url = "foo.txt"
     cytof_record.upload_type = upload_type
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = cytof_record
