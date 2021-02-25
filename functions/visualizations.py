@@ -136,7 +136,7 @@ def _add_antibody_metadata(
                 except:
                     # add a bit of actual context, as any IndexError thrown would not be useful
                     raise Exception(
-                        f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: unable to search ct['assays'][{upload_type}]"
+                        f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: unable to search ct['assays']['{upload_type}']"
                     )
 
     else:
