@@ -83,5 +83,5 @@ jobs:
             --timeout ${{ matrix.timeout }} \
             --memory ${{ matrix.memory }} \
             --env-vars-file $ENV_VARS_FILE \
+            --runtime python37 \
             ${{ matrix.max_instances && format('--max-instances {0}', matrix.max_instances) || ''}}
-            --runtime python37
