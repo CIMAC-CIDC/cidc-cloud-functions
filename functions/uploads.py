@@ -40,38 +40,6 @@ logger.setLevel(logging.DEBUG if ENV == "dev" else logging.INFO)
 
 THREADPOOL_THREADS = 16
 
-_storage_client = None
-
-
-def get_storage_client(refresh=False):
-    """Storage client is a global resource because
-    it can be shared across instances of this function in google cloud.
-    The refresh parameter can be used to force a new client connection
-    incase the credentials are stale."""
-    global _storage_client
-
-    # this attempts to log when the token will expire
-    try:
-        logger.info(
-            f"GCP token expiry before refresh: {_storage_client._credentials.expiry}"
-        )
-    except Exception:
-        pass
-
-    # do the instantiation or refresh
-    if _storage_client is None or refresh == True:
-        _storage_client = storage.Client()
-
-    # log after this function (will be same if no refresh)
-    try:
-        logger.info(
-            f"GCP token expiry after refresh: {_storage_client._credentials.expiry}"
-        )
-    except Exception:
-        pass
-
-    return _storage_client
-
 
 class URLBundle(NamedTuple):
     upload_url: str
@@ -97,6 +65,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
     with the upload job into the download bucket and merge the upload metadata
     into the appropriate clinical trial JSON.
     """
+    storage_client = storage.Client()
+
     job_id = int(extract_pubsub_data(event))
 
     logger.info(f"ingest_upload execution started on upload job id {job_id}")
@@ -133,7 +103,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
             job, session
         ):
             destination_objects = executor.map(
-                copy_from_upload_to_data_bucket, url_bundles
+                lambda url_bundle: _gcs_copy(
+                    storage_client,
+                    GOOGLE_UPLOAD_BUCKET,
+                    url_bundle.upload_url,
+                    GOOGLE_DATA_BUCKET,
+                    url_bundle.target_url,
+                ),
+                url_bundles,
             )
 
         metadata_patch = job.metadata_patch
@@ -179,7 +156,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
-            _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+            _, xlsx_blob = _get_bucket_and_blob(
+                storage_client, GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri
+            )
             full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
             data_format = "Assay Metadata"
             facet_group = f"{job.upload_type}|{data_format}"
@@ -201,6 +180,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
             analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
             _gcs_add_prefix_reader_permission(
+                storage_client,
                 analysis_group_email,  # to whom give access to
                 f"{trial_id}/{assay_prefix}",  # to what sub-folder
             )
@@ -228,7 +208,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
     )
 
 
-def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
+def _gcs_add_prefix_reader_permission(
+    storage_client: storage.Client, group_email: str, prefix: str
+):
     """
     Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
     that allows `group_email` to read all objects within a `prefix`.
@@ -238,7 +220,7 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     )
 
     # get the bucket
-    bucket = _get_bucket_with_client_refresh(GOOGLE_DATA_BUCKET)
+    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
     policy = bucket.get_iam_policy(requested_policy_version=3)
@@ -272,19 +254,12 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     bucket.set_iam_policy(policy)
 
 
-def copy_from_upload_to_data_bucket(url_bundle: URLBundle):
-    # Copy the uploaded GCS object to the data bucket
-    destination_object = _gcs_copy(
-        GOOGLE_UPLOAD_BUCKET,
-        url_bundle.upload_url,
-        GOOGLE_DATA_BUCKET,
-        url_bundle.target_url,
-    )
-    return destination_object
-
-
 def _gcs_copy(
-    source_bucket: str, source_object: str, target_bucket: str, target_object: str
+    storage_client: storage.Client,
+    source_bucket: str,
+    source_object: str,
+    target_bucket: str,
+    target_object: str,
 ):
     """Copy a GCS object from one bucket to another"""
     if ENV == "dev":
@@ -296,10 +271,12 @@ def _gcs_copy(
     logger.debug(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
     )
-    from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
+    from_bucket, from_object = _get_bucket_and_blob(
+        storage_client, source_bucket, source_object
+    )
     if from_object is None:
         raise Exception(f"Couldn't get the GCS blob to copy: {source_object}")
-    to_bucket, _ = _get_bucket_and_blob(target_bucket, None)
+    to_bucket, _ = _get_bucket_and_blob(storage_client, target_bucket, None)
     to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
 
     # We want to maintain the actual upload time of this object, which is the moment
@@ -313,32 +290,8 @@ def _gcs_copy(
     return to_object
 
 
-def _get_bucket_with_client_refresh(bucket_name):
-    """attempt to get bucket first using googlel cloud storage
-    connection, if that fails due to stale token, recreate the
-    connection and try again"""
-
-    # get the storage client
-    storage_client = get_storage_client()
-
-    # get the bucket, if this fails try refreshing the client
-    try:
-        bucket = storage_client.get_bucket(bucket_name)
-    except RefreshError as e:
-        # log the error as a warning
-        logging.warning(e)
-
-        # try to refresh credentials
-        storage_client = get_storage_client(refresh=True)
-
-        # re-run the request, will raise error if fails second time
-        bucket = storage_client.get_bucket(bucket_name)
-
-    return bucket
-
-
 def _get_bucket_and_blob(
-    bucket_name: str, object_name: Optional[str]
+    storage_client: storage.Client, bucket_name: str, object_name: Optional[str]
 ) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
     """Get GCS metadata for a storage bucket and blob"""
 
@@ -349,7 +302,7 @@ def _get_bucket_and_blob(
         return (bucket_name, make_pseudo_blob(object_name))
 
     # get the bucket.
-    bucket = _get_bucket_with_client_refresh(bucket_name)
+    bucket = storage_client.get_bucket(bucket_name)
 
     # get the blob and return it
     blob = bucket.get_blob(object_name) if object_name else None
