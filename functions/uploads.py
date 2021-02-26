@@ -1,6 +1,7 @@
 """A pub/sub triggered functions that respond to data upload events"""
 import sys
 import logging
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Optional, Tuple, NamedTuple
@@ -235,18 +236,41 @@ def _gcs_add_prefix_reader_permission(
         .isoformat()
     )
 
-    prefixCheck = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}/")'
-    expiryCheck = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
+    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}/")'
+    expiry_check = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
+    group_member = f"group:{group_email}"
+
+    # look for a duplicate conditional binding
+    matching_binding_index = None
+    for i, binding in enumerate(policy.bindings):
+        role_matches = binding.get("role") == GOOGLE_ANALYSIS_GROUP_ROLE
+        member_matches = group_member in binding.get("members", {})
+        prefix_matches = prefix_check in binding.get("condition", {}).get(
+            "expression", ""
+        )
+        if role_matches and member_matches and prefix_matches:
+            # we shouldn't have multiple bindings matching these conditions
+            if matching_binding_index is not None:
+                warnings.warn(
+                    f"Found multiple conditional bindings for {group_email} on {prefix}. This is an invariant violation - "
+                    "check out permissions on the CIDC GCS buckets to debug."
+                )
+                break
+            matching_binding_index = i
+
+    # if one exists, delete it so we can replace it below
+    if matching_binding_index is not None:
+        policy.bindings.pop(matching_binding_index)
 
     # following https://github.com/GoogleCloudPlatform/python-docs-samples/pull/2730/files
     policy.bindings.append(
         {
             "role": GOOGLE_ANALYSIS_GROUP_ROLE,
-            "members": ["group:" + group_email],
+            "members": {group_member},
             "condition": {
                 "title": f"Biofx {prefix} until {grant_until_date}",
                 "description": f"Auto-assigned from cidc-cloud-functions/uploads on {datetime.now()}",
-                "expression": f"{prefixCheck} && {expiryCheck}",
+                "expression": f"{prefix_check} && {expiry_check}",
             },
         }
     )
