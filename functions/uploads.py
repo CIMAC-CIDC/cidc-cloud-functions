@@ -262,7 +262,7 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     matching_binding_index = None
     for i, binding in enumerate(policy.bindings):
         role_matches = binding.get("role") == GOOGLE_ANALYSIS_GROUP_ROLE
-        member_matches = binding.get("members") == {group_member}
+        member_matches = group_member in binding.get("members", {})
         prefix_matches = prefix_check in binding.get("condition", {}).get(
             "expression", ""
         )
@@ -284,7 +284,7 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     policy.bindings.append(
         {
             "role": GOOGLE_ANALYSIS_GROUP_ROLE,
-            "members": [group_member],
+            "members": {group_member},
             "condition": {
                 "title": f"Biofx {prefix} until {grant_until_date}",
                 "description": f"Auto-assigned from cidc-cloud-functions/uploads on {datetime.now()}",

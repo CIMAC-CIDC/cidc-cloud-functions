@@ -172,7 +172,7 @@ def test_ingest_upload(caplog, monkeypatch):
     # Check that we aded GCS access for biofx team
     assert _policy == _set_iam_policy.call_args[0][0]
     assert len(_policy.bindings) == 1
-    assert _policy.bindings[0]["members"] == ["group:analysis-group@email"]
+    assert _policy.bindings[0]["members"] == {"group:analysis-group@email"}
     assert _policy.bindings[0]["role"] == "projects/cidc-dfci-staging/roles/CIDC_biofx"
     assert iam_prefix in _policy.bindings[0]["condition"]["expression"]
     _until = datetime.datetime.today() + datetime.timedelta(
