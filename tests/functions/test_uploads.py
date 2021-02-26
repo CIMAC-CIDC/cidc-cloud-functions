@@ -15,6 +15,7 @@ from cidc_api.models import (
 from functions import uploads
 from functions.uploads import ingest_upload, saved_failure_status
 from functions.settings import (
+    GOOGLE_ANALYSIS_GROUP_ROLE,
     GOOGLE_DATA_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
 )
@@ -118,7 +119,15 @@ def test_ingest_upload(caplog, monkeypatch):
     _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
     _bucket.get_iam_policy = _get_iam_policy = MagicMock("_bucket.get_iam_policy")
     _policy = _get_iam_policy.return_value = MagicMock("_policy")
-    _policy.bindings = []
+    iam_prefix = f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes/")'
+    # This set up checks handling duplicate bindings
+    _policy.bindings = [
+        {
+            "role": GOOGLE_ANALYSIS_GROUP_ROLE,
+            "members": {f"group:analysis-group@email"},
+            "condition": {"expression": iam_prefix},
+        }
+    ]
 
     # Mock metadata merging functionality
     _save_file = MagicMock("_save_file")
@@ -165,10 +174,7 @@ def test_ingest_upload(caplog, monkeypatch):
     assert len(_policy.bindings) == 1
     assert _policy.bindings[0]["members"] == ["group:analysis-group@email"]
     assert _policy.bindings[0]["role"] == "projects/cidc-dfci-staging/roles/CIDC_biofx"
-    assert (
-        f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes/")'
-        in _policy.bindings[0]["condition"]["expression"]
-    )
+    assert iam_prefix in _policy.bindings[0]["condition"]["expression"]
     _until = datetime.datetime.today() + datetime.timedelta(
         GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS
     )
