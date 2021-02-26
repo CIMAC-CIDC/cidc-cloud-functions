@@ -57,6 +57,7 @@ jobs:
             topic: artifact_upload
             timeout: 540
             memory: 1024
+            max_instances: 10
           - name: derive_files_from_manifest_upload
             topic: patient_sample_update
             timeout: 60
@@ -82,4 +83,5 @@ jobs:
             --timeout ${{ matrix.timeout }} \
             --memory ${{ matrix.memory }} \
             --env-vars-file $ENV_VARS_FILE \
+            ${{ matrix.max_instances && format('--max-instances {0}', matrix.max_instances) || ''}}
             --runtime python37
