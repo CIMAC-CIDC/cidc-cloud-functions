@@ -1,21 +1,11 @@
 """A pub/sub triggered functions that respond to data upload events"""
 import sys
 import logging
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Optional, Tuple, NamedTuple
 from datetime import datetime, timedelta
-
-from flask import jsonify
-from google.cloud import storage
-from cidc_api.models import (
-    UploadJobs,
-    TrialMetadata,
-    DownloadableFiles,
-    UploadJobStatus,
-    prism,
-)
-from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
 
 from .settings import (
     ENV,
@@ -33,20 +23,23 @@ from .util import (
     make_pseudo_blob,
 )
 
+from flask import jsonify
+from google.cloud import storage
+from google.auth.exceptions import RefreshError
+from cidc_api.models import (
+    UploadJobs,
+    TrialMetadata,
+    DownloadableFiles,
+    UploadJobStatus,
+    prism,
+)
+from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
+
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.DEBUG if ENV == "dev" else logging.INFO)
 
 THREADPOOL_THREADS = 16
-
-_storage_client = None
-
-
-def get_storage_client():
-    global _storage_client
-    if _storage_client is None:
-        _storage_client = storage.Client()
-    return _storage_client
 
 
 class URLBundle(NamedTuple):
@@ -73,6 +66,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
     with the upload job into the download bucket and merge the upload metadata
     into the appropriate clinical trial JSON.
     """
+    storage_client = storage.Client()
+
     job_id = int(extract_pubsub_data(event))
 
     logger.info(f"ingest_upload execution started on upload job id {job_id}")
@@ -109,7 +104,14 @@ def ingest_upload(event: dict, context: BackgroundContext):
             job, session
         ):
             destination_objects = executor.map(
-                copy_from_upload_to_data_bucket, url_bundles
+                lambda url_bundle: _gcs_copy(
+                    storage_client,
+                    GOOGLE_UPLOAD_BUCKET,
+                    url_bundle.upload_url,
+                    GOOGLE_DATA_BUCKET,
+                    url_bundle.target_url,
+                ),
+                url_bundles,
             )
 
         metadata_patch = job.metadata_patch
@@ -155,7 +157,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
-            _, xlsx_blob = _get_bucket_and_blob(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+            _, xlsx_blob = _get_bucket_and_blob(
+                storage_client, GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri
+            )
             full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
             data_format = "Assay Metadata"
             facet_group = f"{job.upload_type}|{data_format}"
@@ -177,6 +181,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
         if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
             analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
             _gcs_add_prefix_reader_permission(
+                storage_client,
                 analysis_group_email,  # to whom give access to
                 f"{trial_id}/{assay_prefix}",  # to what sub-folder
             )
@@ -204,7 +209,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
     )
 
 
-def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
+def _gcs_add_prefix_reader_permission(
+    storage_client: storage.Client, group_email: str, prefix: str
+):
     """
     Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
     that allows `group_email` to read all objects within a `prefix`.
@@ -213,7 +220,7 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
         f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
     )
 
-    storage_client = get_storage_client()
+    # get the bucket
     bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
@@ -229,18 +236,41 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
         .isoformat()
     )
 
-    prefixCheck = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}/")'
-    expiryCheck = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
+    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}/")'
+    expiry_check = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
+    group_member = f"group:{group_email}"
+
+    # look for a duplicate conditional binding
+    matching_binding_index = None
+    for i, binding in enumerate(policy.bindings):
+        role_matches = binding.get("role") == GOOGLE_ANALYSIS_GROUP_ROLE
+        member_matches = group_member in binding.get("members", {})
+        prefix_matches = prefix_check in binding.get("condition", {}).get(
+            "expression", ""
+        )
+        if role_matches and member_matches and prefix_matches:
+            # we shouldn't have multiple bindings matching these conditions
+            if matching_binding_index is not None:
+                warnings.warn(
+                    f"Found multiple conditional bindings for {group_email} on {prefix}. This is an invariant violation - "
+                    "check out permissions on the CIDC GCS buckets to debug."
+                )
+                break
+            matching_binding_index = i
+
+    # if one exists, delete it so we can replace it below
+    if matching_binding_index is not None:
+        policy.bindings.pop(matching_binding_index)
 
     # following https://github.com/GoogleCloudPlatform/python-docs-samples/pull/2730/files
     policy.bindings.append(
         {
             "role": GOOGLE_ANALYSIS_GROUP_ROLE,
-            "members": ["group:" + group_email],
+            "members": {group_member},
             "condition": {
                 "title": f"Biofx {prefix} until {grant_until_date}",
                 "description": f"Auto-assigned from cidc-cloud-functions/uploads on {datetime.now()}",
-                "expression": f"{prefixCheck} && {expiryCheck}",
+                "expression": f"{prefix_check} && {expiry_check}",
             },
         }
     )
@@ -248,19 +278,12 @@ def _gcs_add_prefix_reader_permission(group_email: str, prefix: str):
     bucket.set_iam_policy(policy)
 
 
-def copy_from_upload_to_data_bucket(url_bundle: URLBundle):
-    # Copy the uploaded GCS object to the data bucket
-    destination_object = _gcs_copy(
-        GOOGLE_UPLOAD_BUCKET,
-        url_bundle.upload_url,
-        GOOGLE_DATA_BUCKET,
-        url_bundle.target_url,
-    )
-    return destination_object
-
-
 def _gcs_copy(
-    source_bucket: str, source_object: str, target_bucket: str, target_object: str
+    storage_client: storage.Client,
+    source_bucket: str,
+    source_object: str,
+    target_bucket: str,
+    target_object: str,
 ):
     """Copy a GCS object from one bucket to another"""
     if ENV == "dev":
@@ -272,10 +295,12 @@ def _gcs_copy(
     logger.debug(
         f"Copying gs://{source_bucket}/{source_object} to gs://{target_bucket}/{target_object}"
     )
-    from_bucket, from_object = _get_bucket_and_blob(source_bucket, source_object)
+    from_bucket, from_object = _get_bucket_and_blob(
+        storage_client, source_bucket, source_object
+    )
     if from_object is None:
         raise Exception(f"Couldn't get the GCS blob to copy: {source_object}")
-    to_bucket, _ = _get_bucket_and_blob(target_bucket, None)
+    to_bucket, _ = _get_bucket_and_blob(storage_client, target_bucket, None)
     to_object = from_bucket.copy_blob(from_object, to_bucket, new_name=target_object)
 
     # We want to maintain the actual upload time of this object, which is the moment
@@ -290,7 +315,7 @@ def _gcs_copy(
 
 
 def _get_bucket_and_blob(
-    bucket_name: str, object_name: Optional[str]
+    storage_client: storage.Client, bucket_name: str, object_name: Optional[str]
 ) -> Tuple[storage.Bucket, Optional[storage.Blob]]:
     """Get GCS metadata for a storage bucket and blob"""
 
@@ -300,7 +325,9 @@ def _get_bucket_and_blob(
         )
         return (bucket_name, make_pseudo_blob(object_name))
 
-    storage_client = get_storage_client()
+    # get the bucket.
     bucket = storage_client.get_bucket(bucket_name)
+
+    # get the blob and return it
     blob = bucket.get_blob(object_name) if object_name else None
     return bucket, blob

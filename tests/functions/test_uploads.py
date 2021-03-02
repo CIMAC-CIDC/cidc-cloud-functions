@@ -15,6 +15,7 @@ from cidc_api.models import (
 from functions import uploads
 from functions.uploads import ingest_upload, saved_failure_status
 from functions.settings import (
+    GOOGLE_ANALYSIS_GROUP_ROLE,
     GOOGLE_DATA_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
 )
@@ -82,7 +83,7 @@ def test_ingest_upload(caplog, monkeypatch):
 
     # Mock data transfer functionality
     _gcs_copy = MagicMock()
-    _gcs_copy.side_effect = lambda source_bucket, source_object, target_bucket, target_object: _gcs_obj_mock(
+    _gcs_copy.side_effect = lambda storage_client, source_bucket, source_object, target_bucket, target_object: _gcs_obj_mock(
         target_object,
         100,
         datetime.datetime.now(),
@@ -118,7 +119,15 @@ def test_ingest_upload(caplog, monkeypatch):
     _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
     _bucket.get_iam_policy = _get_iam_policy = MagicMock("_bucket.get_iam_policy")
     _policy = _get_iam_policy.return_value = MagicMock("_policy")
-    _policy.bindings = []
+    iam_prefix = f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes/")'
+    # This set up checks handling duplicate bindings
+    _policy.bindings = [
+        {
+            "role": GOOGLE_ANALYSIS_GROUP_ROLE,
+            "members": {f"group:analysis-group@email"},
+            "condition": {"expression": iam_prefix},
+        }
+    ]
 
     # Mock metadata merging functionality
     _save_file = MagicMock("_save_file")
@@ -149,7 +158,9 @@ def test_ingest_upload(caplog, monkeypatch):
     # Check that we tried to merge metadata once
     _merge_metadata.assert_called_once()
     # Check that we got the xlsx blob metadata from GCS
-    _get_bucket_and_blob.assert_called_with(GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri)
+    _get_bucket_and_blob.assert_called_with(
+        _storage_client, GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri
+    )
     # Check that we created a downloadable file for the xlsx file blob
     assert _save_blob_file.call_args[:-1][0] == (
         "CIMAC-12345",
@@ -163,12 +174,9 @@ def test_ingest_upload(caplog, monkeypatch):
     # Check that we aded GCS access for biofx team
     assert _policy == _set_iam_policy.call_args[0][0]
     assert len(_policy.bindings) == 1
-    assert _policy.bindings[0]["members"] == ["group:analysis-group@email"]
+    assert _policy.bindings[0]["members"] == {"group:analysis-group@email"}
     assert _policy.bindings[0]["role"] == "projects/cidc-dfci-staging/roles/CIDC_biofx"
-    assert (
-        f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes/")'
-        in _policy.bindings[0]["condition"]["expression"]
-    )
+    assert iam_prefix in _policy.bindings[0]["condition"]["expression"]
     _until = datetime.datetime.today() + datetime.timedelta(
         GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS
     )

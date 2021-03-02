@@ -2,9 +2,6 @@
 import os
 import json
 
-from cidc_api.config import get_sqlalchemy_database_uri, get_secrets_manager
-
-
 # Cloud Functions provide the current GCP project id
 # in the environment variable GCP_PROJECT. If this
 # variable isn't set, then we're not running in GCP.
@@ -18,6 +15,9 @@ if not GCP_PROJECT:
 
     # Pull GCP_PROJECT from .env
     GCP_PROJECT = os.environ.get("GCP_PROJECT")
+
+from cidc_api.config import get_sqlalchemy_database_uri, get_secrets_manager
+
 
 TESTING = os.environ.get("TESTING")
 ENV = os.environ.get("ENV")

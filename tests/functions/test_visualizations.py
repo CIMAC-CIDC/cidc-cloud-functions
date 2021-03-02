@@ -9,10 +9,12 @@ import functions.visualizations
 from functions.visualizations import (
     vis_preprocessing,
     DownloadableFiles,
+    TrialMetadata,
     _ClustergrammerTransform,
     _cytof_summary_to_dataframe,
     _npx_to_dataframe,
     _metadata_to_categories,
+    _add_antibody_metadata,
 )
 
 from tests.util import make_pubsub_event
@@ -44,7 +46,7 @@ def metadata_df():
 def test_loading_lazily(monkeypatch, metadata_df):
     """Test that files aren't loaded if there are no transformations for them"""
     record = MagicMock()
-    record.object_url = "foo"
+    record.object_url = "foo.txt"
     record.upload_type = "something"
     record.data_format = "CSV"
     get_by_object_url = MagicMock()
@@ -65,11 +67,283 @@ def test_loading_lazily(monkeypatch, metadata_df):
     get_blob_as_stream.assert_not_called()
 
 
+def test_add_antibody_metadata_validation(monkeypatch, metadata_df):
+    """Test that the validation checks in _add_antibody_metadata throw errors as expected"""
+    record = MagicMock()
+    record.object_url = "foo.txt"
+    record.upload_type = "mif"
+    record.data_format = "CSV"
+
+    ct_typeerror = {"assays": {"mif": 5}}
+    trial_md = MagicMock()
+    trial_md.metadata_json = ct_typeerror
+    get_trial_by_id = MagicMock()
+    get_trial_by_id.return_value = trial_md
+    with monkeypatch.context() as m:
+        m.setattr(TrialMetadata, "find_by_trial_id", get_trial_by_id)
+        with pytest.raises(TypeError, match="Issue loading antibodies"):
+            _add_antibody_metadata(record, metadata_df)
+
+    ct_nonunique = {"assays": {"mif": ["foo.txt", "foo.txt"]}}
+    get_trial_by_id.return_value.metadata_json = ct_nonunique
+    with monkeypatch.context() as m:
+        m.setattr(TrialMetadata, "find_by_trial_id", get_trial_by_id)
+        with pytest.raises(Exception, match="Issue loading antibodies"):
+            _add_antibody_metadata(record, metadata_df)
+
+
+def test_cytof_antibody_metadata_end_to_end(monkeypatch, metadata_df):
+    """Test addition of antibody metadata for cytof files"""
+    # Mock an CyTOF downloadable file record
+    cytof_record = MagicMock()
+    cytof_record.object_url = "foo.txt"
+    cytof_record.upload_type = "cytof"
+    cytof_record.additional_metadata = {"foo": "bar"}
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = cytof_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    # Mock trial
+    ct = MagicMock()
+    ct.metadata_json = {
+        "assays": {
+            "cytof": [
+                {
+                    "cytof_antibodies": [
+                        {"usage": "Ignored"},
+                        {
+                            "usage": "Used",
+                            "stain_type": "Surface Stain",
+                            "isotope": "000Foo",
+                            "antibody": "Bar",
+                            "clone": "Nx/xxx",
+                        },
+                        {
+                            "usage": "Analysis Only",
+                            "stain_type": "Intracellular",
+                            "isotope": "001Foo",
+                            "antibody": "Baz",
+                        },
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
+                }
+            ]
+        }
+    }
+    find_by_trial_id = MagicMock()
+    find_by_trial_id.return_value = ct
+    monkeypatch.setattr(TrialMetadata, "find_by_trial_id", find_by_trial_id)
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_by_object_url.assert_called_once()
+    _get_metadata_df.assert_called_once()
+
+    assert cytof_record.additional_metadata == {
+        "foo": "bar",
+        "cytof.antibodies": "surface 000Foo-Bar (Nx/xxx), intracellular 001Foo-Baz",
+    }
+
+
+def test_elisa_antibody_metadata_end_to_end(monkeypatch, metadata_df):
+    """Test addition of antibody metadata for ELISA files"""
+    # Mock an ELISA downloadable file record
+    elisa_record = MagicMock()
+    elisa_record.object_url = "foo.txt"
+    elisa_record.upload_type = "elisa"
+    elisa_record.additional_metadata = {"foo": "bar"}
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = elisa_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    # Mock GCS call
+    ct = MagicMock()
+    ct.metadata_json = {
+        "assays": {
+            "elisa": [
+                {
+                    "antibodies": [
+                        {"usage": "Ignored"},
+                        {
+                            "usage": "Used",
+                            "stain_type": "Surface Stain",
+                            "isotope": "000Foo",
+                            "antibody": "Bar",
+                            "clone": "Nx/xxx",
+                        },
+                        {
+                            "usage": "Analysis Only",
+                            "stain_type": "Intracellular",
+                            "isotope": "001Foo",
+                            "antibody": "Baz",
+                        },
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
+                }
+            ]
+        }
+    }
+    find_by_trial_id = MagicMock()
+    find_by_trial_id.return_value = ct
+    monkeypatch.setattr(TrialMetadata, "find_by_trial_id", find_by_trial_id)
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_by_object_url.assert_called_once()
+    _get_metadata_df.assert_called_once()
+
+    assert elisa_record.additional_metadata == {
+        "foo": "bar",
+        "elisa.antibodies": "surface 000Foo-Bar (Nx/xxx), intracellular 001Foo-Baz",
+    }
+
+
+def test_ihc_antibody_metadata_end_to_end(monkeypatch, metadata_df):
+    """Test addition of antibody metadata for IHC files"""
+    # Mock an IHC downloadable file record
+    ihc_record = MagicMock()
+    ihc_record.object_url = "foo.txt"
+    ihc_record.upload_type = "ihc"
+    ihc_record.additional_metadata = {"foo": "bar"}
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = ihc_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    # Mock GCS call
+    ct = MagicMock()
+    ct.metadata_json = {
+        "assays": {
+            "ihc": [
+                {
+                    "antibody": {"antibody": "Bar", "clone": "Nx/xxx"},
+                    "object_url": "foo.txt",  # for DeepSearch
+                }
+            ]
+        }
+    }
+    find_by_trial_id = MagicMock()
+    find_by_trial_id.return_value = ct
+    monkeypatch.setattr(TrialMetadata, "find_by_trial_id", find_by_trial_id)
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_by_object_url.assert_called_once()
+    _get_metadata_df.assert_called_once()
+
+    assert ihc_record.additional_metadata == {
+        "foo": "bar",
+        "ihc.antibody": "Bar (Nx/xxx)",
+    }
+
+
+def test_micsss_antibody_metadata_end_to_end(monkeypatch, metadata_df):
+    """Test addition of antibody metadata for MICSSS files"""
+    # Mock an MICSSS downloadable file record
+    micsss_record = MagicMock()
+    micsss_record.object_url = "foo.txt"
+    micsss_record.upload_type = "micsss"
+    micsss_record.additional_metadata = {"foo": "bar"}
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = micsss_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    # Mock GCS call
+    ct = MagicMock()
+    ct.metadata_json = {
+        "assays": {
+            "micsss": [
+                {
+                    "antibody": [
+                        {"antibody": "Bar", "clone": "Nx/xxx"},
+                        {"antibody": "Baz"},
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
+                }
+            ]
+        }
+    }
+    find_by_trial_id = MagicMock()
+    find_by_trial_id.return_value = ct
+    monkeypatch.setattr(TrialMetadata, "find_by_trial_id", find_by_trial_id)
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_by_object_url.assert_called_once()
+    _get_metadata_df.assert_called_once()
+
+    assert micsss_record.additional_metadata == {
+        "foo": "bar",
+        "micsss.antibodies": "Bar (Nx/xxx), Baz",
+    }
+
+
+def test_mif_antibody_metadata_end_to_end(monkeypatch, metadata_df):
+    """Test addition of antibody metadata for MIF files"""
+    # Mock an MIF downloadable file record
+    mif_record = MagicMock()
+    mif_record.object_url = "foo.txt"
+    mif_record.upload_type = "mif"
+    mif_record.additional_metadata = {"foo": "bar"}
+    get_by_object_url = MagicMock()
+    get_by_object_url.return_value = mif_record
+    monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
+
+    # Mock GCS call
+    ct = MagicMock()
+    ct.metadata_json = {
+        "assays": {
+            "mif": [
+                {
+                    "antibodies": [
+                        {"export_name": "Foo"},
+                        {"antibody": "Bar", "clone": "Nx/xxx", "fluor_wavelength": 500},
+                        {"antibody": "Baz", "fluor_wavelength": 500},
+                    ],
+                    "object_url": "foo.txt",  # for DeepSearch
+                }
+            ]
+        }
+    }
+    find_by_trial_id = MagicMock()
+    find_by_trial_id.return_value = ct
+    monkeypatch.setattr(TrialMetadata, "find_by_trial_id", find_by_trial_id)
+
+    # Mock metadata_df
+    _get_metadata_df = MagicMock()
+    _get_metadata_df.return_value = metadata_df
+    monkeypatch.setattr(functions.visualizations, "_get_metadata_df", _get_metadata_df)
+
+    vis_preprocessing(make_pubsub_event("1"), {})
+    get_by_object_url.assert_called_once()
+    _get_metadata_df.assert_called_once()
+
+    assert mif_record.additional_metadata == {
+        "foo": "bar",
+        "mif.antibodies": "Foo, Bar (Nx/xxx - 500), Baz (500)",
+    }
+
+
 def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
     """Test the IHC combined transform."""
     # Mock an IHC combined downloadable file record
     ihc_record = MagicMock()
-    ihc_record.object_url = "foo"
+    ihc_record.object_url = "foo.txt"
     ihc_record.upload_type = "ihc marker combined"
     ihc_record.data_format = "CSV"
     get_by_object_url = MagicMock()
@@ -126,7 +400,7 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Mock an NPX downloadable file record
     npx_record = MagicMock()
-    npx_record.object_url = "foo"
+    npx_record.object_url = "foo.txt"
     npx_record.data_format = "NPX"
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = npx_record
@@ -187,7 +461,7 @@ def test_cytof_clustergrammer_end_to_end(monkeypatch, metadata_df, upload_type):
 
     # Mock a CyTOF summary downloadable file record
     cytof_record = MagicMock()
-    cytof_record.object_url = "foo"
+    cytof_record.object_url = "foo.txt"
     cytof_record.upload_type = upload_type
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = cytof_record

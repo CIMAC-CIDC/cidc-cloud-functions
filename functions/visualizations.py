@@ -5,9 +5,10 @@ from typing import Optional, Union
 
 import pandas as pd
 from clustergrammer import Network as CGNetwork
+from deepdiff import DeepSearch
 from openpyxl import load_workbook
 from google.cloud import storage
-from cidc_api.models import DownloadableFiles, prism
+from cidc_api.models import DownloadableFiles, prism, TrialMetadata
 
 from .settings import GOOGLE_DATA_BUCKET
 from .util import (
@@ -79,7 +80,161 @@ def _get_transforms() -> dict:
     return {
         "clustergrammer": _ClustergrammerTransform(),
         "ihc_combined_plot": _ihc_combined_transform,
+        "additional_metadata": _add_antibody_metadata,
     }
+
+
+def _add_antibody_metadata(
+    file_record: DownloadableFiles, metadata_df: pd.DataFrame
+) -> Optional[dict]:
+    """
+    Pseudo transformation to add antibody data to the DownloadableFiles.additional_metadata JSON
+    Only for upload_type in [cytof, elisa, ihc, micsss, and mif]
+    """
+    transforms = {
+        "cytof": _cytof_antibody_md,
+        "elisa": _elisa_antibody_md,
+        "ihc": _ihc_antibody_md,
+        "micsss": _micsss_antibody_md,
+        "mif": _mif_antibody_md,
+    }
+    upload_type = file_record.upload_type.lower()
+    if upload_type not in transforms.keys():
+        return None
+
+    with sqlalchemy_session() as session:
+        ct_md = TrialMetadata.find_by_trial_id(
+            file_record.trial_id, session=session
+        ).metadata_json
+
+    assay_instances = ct_md.get("assays", {}).get(upload_type, [])
+    # asserting that this will return a list, which is not necessarily true
+    # check cidc-schemas/schemas/assays/components/available_assays.json
+
+    if isinstance(assay_instances, dict):
+        # only exception to list, eg olink
+        assay_md = assay_instances
+    elif isinstance(assay_instances, list):
+        ds = DeepSearch(assay_instances, file_record.object_url)
+        if "matched_values" in ds:
+            if len(ds["matched_values"]) != 1:
+                raise Exception(
+                    f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: {file_record.object_url} is not unique in ct['assays'][{upload_type}]"
+                )
+
+            # matched_value = ["root[path][to][matching]"]
+            matching_path = list(ds["matched_values"])[0]
+            index = matching_path.split("[")[1].split("]")[0]
+            if index.isdigit():  # not technically needed, see below
+                assay_md = assay_instances[int(index)]
+            else:
+                # technically can't get here because DeepSearch on assay_instances: list has return bounded to "root[ int ]..."
+                # if some error occurs, need to error or need assay_md defined
+                # testing this doesn't seem necessary, but would likely need patching DeepSearch
+                try:
+                    assay_md = assay_instances[index]  # should work for all root[...]
+                except:
+                    # add a bit of actual context, as any IndexError thrown would not be useful
+                    raise Exception(
+                        f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: unable to search ct['assays']['{upload_type}']"
+                    )
+
+    else:
+        raise TypeError(
+            f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: ct['assays']['{upload_type}'] is {type(assay_instances).__name__} not list, dict"
+        )
+
+    md = transforms[upload_type](assay_md)
+    if md is None:  # no antibody metadata on the assay
+        return None
+
+    file_md = file_record.additional_metadata
+    if upload_type == "ihc":
+        # for ihc, is only a single antibody
+        file_md["ihc.antibody"] = md
+    else:
+        file_md[f"{upload_type}.antibodies"] = md
+
+    return file_md
+
+
+def _cytof_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("cytof_antibodies")
+    if not antibody_md:
+        return None
+
+    antibodies = []
+    for ab in antibody_md:
+        if ab["usage"] != "Ignored":
+            entry = f"{ab['stain_type'].lower().split()[0]} {ab['isotope']}-{ab['antibody']}"
+            if ab.get("clone"):
+                entry += f" ({ab['clone']})"
+            antibodies.append(entry)
+
+    return ", ".join(antibodies)
+
+
+def _elisa_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibodies")
+    if not antibody_md:
+        return None
+
+    antibodies = []
+    for ab in antibody_md:
+        if ab["usage"] != "Ignored":
+            entry = f"{ab['stain_type'].lower().split()[0]} {ab['isotope']}-{ab['antibody']}"
+            if ab.get("clone"):
+                entry += f" ({ab['clone']})"
+            antibodies.append(entry)
+
+    return ", ".join(antibodies)
+
+
+def _ihc_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibody")
+    if not antibody_md:
+        return None
+
+    antibody = antibody_md["antibody"]
+    if antibody_md.get("clone"):
+        antibody += f" ({antibody_md['clone']})"
+
+    return antibody
+
+
+def _micsss_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibody")
+    if not antibody_md:
+        return None
+
+    antibodies = []
+    for ab in antibody_md:
+        entry = ab["antibody"]
+        if ab.get("clone"):
+            entry += f" ({ab['clone']})"
+        antibodies.append(entry)
+
+    return ", ".join(antibodies)
+
+
+def _mif_antibody_md(assay_md: dict) -> Optional[str]:
+    antibody_md = assay_md.get("antibodies")
+    if not antibody_md:
+        return None
+
+    antibodies = []
+    for ab in antibody_md:
+        if ab.get("export_name"):
+            entry = ab["export_name"]
+        else:
+            entry = ab["antibody"] + " ("
+            if ab.get("clone"):
+                entry += ab["clone"] + " - "
+            entry += str(ab["fluor_wavelength"]) + ")"
+
+        antibodies.append(entry)
+
+    return ", ".join(antibodies)
 
 
 def _ihc_combined_transform(
