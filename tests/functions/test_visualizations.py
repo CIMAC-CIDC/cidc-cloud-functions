@@ -48,7 +48,6 @@ def test_loading_lazily(monkeypatch, metadata_df):
     record = MagicMock()
     record.object_url = "foo.txt"
     record.upload_type = "something"
-    record.data_format = "CSV"
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
@@ -72,7 +71,6 @@ def test_add_antibody_metadata_validation(monkeypatch, metadata_df):
     record = MagicMock()
     record.object_url = "foo.txt"
     record.upload_type = "mif"
-    record.data_format = "CSV"
 
     ct_typeerror = {"assays": {"mif": 5}}
     trial_md = MagicMock()
@@ -345,7 +343,6 @@ def test_ihc_combined_end_to_end(monkeypatch, metadata_df):
     ihc_record = MagicMock()
     ihc_record.object_url = "foo.txt"
     ihc_record.upload_type = "ihc marker combined"
-    ihc_record.data_format = "CSV"
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = ihc_record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
@@ -400,8 +397,7 @@ def test_npx_clustergrammer_end_to_end(monkeypatch, metadata_df):
 
     # Mock an NPX downloadable file record
     npx_record = MagicMock()
-    npx_record.object_url = "foo.txt"
-    npx_record.data_format = "NPX"
+    npx_record.object_url = "npx.xlsx"
     get_by_object_url = MagicMock()
     get_by_object_url.return_value = npx_record
     monkeypatch.setattr(DownloadableFiles, "get_by_object_url", get_by_object_url)
