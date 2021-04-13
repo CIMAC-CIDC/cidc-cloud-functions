@@ -119,7 +119,7 @@ def _add_antibody_metadata(
         if "matched_values" in ds:
             if len(ds["matched_values"]) != 1:
                 raise Exception(
-                    f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: {file_record.object_url} is not unique in ct['assays'][{upload_type}]"
+                    f"Issue loading antibodies for {file_record.object_url} in {file_record.trial_id}: {file_record.object_url} is not unique in ct['assays'][{upload_type}]"
                 )
 
             # matched_value = ["root[path][to][matching]"]
@@ -136,12 +136,12 @@ def _add_antibody_metadata(
                 except:
                     # add a bit of actual context, as any IndexError thrown would not be useful
                     raise Exception(
-                        f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: unable to search ct['assays']['{upload_type}']"
+                        f"Issue loading antibodies for {file_record.object_url} in {file_record.trial_id}: unable to search ct['assays']['{upload_type}']"
                     )
 
     else:
         raise TypeError(
-            f"Issue loading antibodies for {file_record.file_name} in {file_record.trial_id}: ct['assays']['{upload_type}'] is {type(assay_instances).__name__} not list, dict"
+            f"Issue loading antibodies for {file_record.object_url} in {file_record.trial_id}: ct['assays']['{upload_type}'] is {type(assay_instances).__name__} not list, dict"
         )
 
     md = transforms[upload_type](assay_md)
@@ -246,8 +246,6 @@ def _ihc_combined_transform(
     if file_record.upload_type.lower() != "ihc marker combined":
         return None
 
-    assert file_record.data_format.lower() == "csv"
-
     print(f"Generating IHC combined visualization config for file {file_record.id}")
     data_file = get_blob_as_stream(file_record.object_url)
 
@@ -266,7 +264,7 @@ class _ClustergrammerTransform:
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
-        if file_record.data_format.lower() == "npx":
+        if file_record.object_url.endswith("npx.xlsx"):
             data_file = get_blob_as_stream(file_record.object_url)
             return self.npx(data_file, metadata_df)
         elif file_record.upload_type.lower() in (
