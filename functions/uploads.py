@@ -136,7 +136,8 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # NOTE: this needs to happen after TrialMetadata.patch_assays
         # in order to avoid violating a foreign-key constraint on the trial_id
         # in the event that this is the first upload for a trial.
-        def create_downloadable_file(artifact_metadata, additional_metadata):
+        logger.info("Saving artifact records to the downloadable_files table.")
+        for artifact_metadata, additional_metadata in downloadable_files:
             logger.debug(
                 f"Saving metadata to downloadable_files table: {artifact_metadata}"
             )
@@ -148,12 +149,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 session=session,
                 commit=False,
             )
-
-        logger.info("Saving artifact records to the downloadable_files table.")
-        with ThreadPoolExecutor(THREADPOOL_THREADS) as executor, saved_failure_status(
-            job, session
-        ):
-            executor.map(create_downloadable_file, *zip(*downloadable_files))
 
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
