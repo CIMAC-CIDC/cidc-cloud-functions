@@ -3,7 +3,7 @@ google-cloud-logging==1.13.0
 psycopg2-binary==2.8.3
 sendgrid==6.0.5
 requests==2.22.0
-pandas==0.25.3
+pandas==1.2.4
 openpyxl==3.0.7
 six~=1.13.0
 
