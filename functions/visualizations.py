@@ -5,7 +5,10 @@ from typing import Optional, Union
 
 # clustergrammer2 via sklearn uses np.float which is deprecated as of numpy==1.20
 import warnings
-warnings.filterwarnings(action="ignore", category=DeprecationWarning, module="scikit-learn")
+
+warnings.filterwarnings(
+    action="ignore", category=DeprecationWarning, module="scikit-learn"
+)
 import pandas as pd
 
 from clustergrammer2 import Network as CGNetwork
