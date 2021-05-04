@@ -3,8 +3,12 @@ import json
 from io import BytesIO
 from typing import Optional, Union
 
+# clustergrammer2 via sklearn uses np.float which is deprecated as of numpy==1.20
+import warnings
+warnings.filterwarnings(action="ignore", category=DeprecationWarning, module="scikit-learn")
 import pandas as pd
-from clustergrammer import Network as CGNetwork
+
+from clustergrammer2 import Network as CGNetwork
 from deepdiff import DeepSearch
 from openpyxl import load_workbook
 from google.cloud import storage
@@ -17,6 +21,7 @@ from .util import (
     sqlalchemy_session,
     get_blob_as_stream,
 )
+
 
 # sets the maximum number of divisions within a category
 ## that is shown on the top of the clustergrammer
