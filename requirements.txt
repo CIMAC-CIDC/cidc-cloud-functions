@@ -3,11 +3,15 @@ google-cloud-logging==1.13.0
 psycopg2-binary==2.8.3
 sendgrid==6.0.5
 requests==2.22.0
-pandas==0.25.3
-openpyxl==2.6.2
-clustergrammer==1.13.6
-scikit-learn==0.21.3 # clustergrammer dependency
+pandas==1.2.4
+openpyxl==3.0.7
 six~=1.13.0
 
+clustergrammer2==0.17.0
+# CG dependencies
+matplotlib==3.4.1
+statsmodels==0.12.2
+scikit_learn==0.24.2
+
 # The cidc_api_modules package
-cidc-api-modules~=0.24.25
+cidc-api-modules~=0.24.26
