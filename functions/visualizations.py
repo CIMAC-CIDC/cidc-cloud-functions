@@ -11,7 +11,7 @@ warnings.filterwarnings(
 )
 import pandas as pd
 
-from clustergrammer2 import Network as CGNetwork
+from clustergrammer import Network as CGNetwork
 from deepdiff import DeepSearch
 from openpyxl import load_workbook
 from google.cloud import storage
