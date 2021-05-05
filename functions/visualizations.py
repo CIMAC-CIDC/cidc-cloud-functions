@@ -450,6 +450,9 @@ def _npx_to_dataframe(fname, sheet_name="NPX Data") -> pd.DataFrame:
     # Drop columns that don't have raw data
     raw.drop(columns=["Plate ID", "QC Warning"], inplace=True)
 
+    # Data is later z-scored, so remove data that would introduce NaN's
+    raw.drop(columns=raw.columns[raw.std() == 0], inplace=True)
+
     return raw.T
 
 
