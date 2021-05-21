@@ -44,15 +44,15 @@ jobs:
           - name: store_auth0_logs
             topic: daily_cron
             timeout: 120
-            memory: 256
+            memory: 1024
           - name: disable_inactive_users
             topic: daily_cron
             timeout: 120
-            memory: 256
+            memory: 1024
           - name: refresh_download_permissions
             topic: daily_cron
             timeout: 120
-            memory: 256
+            memory: 1024
           - name: vis_preprocessing
             topic: artifact_upload
             timeout: 540
@@ -61,7 +61,7 @@ jobs:
           - name: derive_files_from_manifest_upload
             topic: patient_sample_update
             timeout: 60
-            memory: 512
+            memory: 1024
           - name: derive_files_from_assay_or_analysis_upload
             topic: assay_or_analysis_upload_complete
             timeout: 540
