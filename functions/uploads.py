@@ -25,7 +25,6 @@ from .util import (
 
 from flask import jsonify
 from google.cloud import storage
-from google.auth.exceptions import RefreshError
 from cidc_api.models import (
     UploadJobs,
     TrialMetadata,

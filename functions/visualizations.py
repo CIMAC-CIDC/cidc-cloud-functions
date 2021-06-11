@@ -1,7 +1,6 @@
-import re
 import json
 from io import BytesIO
-from typing import Optional, Union
+from typing import Optional
 
 # clustergrammer2 via sklearn uses np.float which is deprecated as of numpy==1.20
 import warnings
@@ -14,7 +13,6 @@ import pandas as pd
 from clustergrammer2 import Network as CGNetwork
 from deepdiff import DeepSearch
 from openpyxl import load_workbook
-from google.cloud import storage
 from cidc_api.models import DownloadableFiles, prism, TrialMetadata
 
 from .settings import GOOGLE_DATA_BUCKET
