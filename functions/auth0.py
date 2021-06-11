@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional
 
 from google.cloud import storage, logging
-from google.api_core.exceptions import NotFound
 
 from .settings import (
     AUTH0_CLIENT_ID,
