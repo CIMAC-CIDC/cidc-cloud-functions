@@ -1,13 +1,7 @@
-from google.cloud import storage
-from collections import namedtuple
-from datetime import datetime
-
-from .settings import GOOGLE_DATA_BUCKET
 from .util import (
     BackgroundContext,
     extract_pubsub_data,
     sqlalchemy_session,
-    make_pseudo_blob,
     get_blob_as_stream as fetch_artifact,
     upload_to_data_bucket,
 )
