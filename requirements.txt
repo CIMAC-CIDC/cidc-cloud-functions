@@ -14,4 +14,4 @@ statsmodels==0.12.2
 scikit_learn==0.24.2
 
 # The cidc_api_modules package
-cidc-api-modules~=0.24.37
+cidc-api-modules~=0.24.38
