@@ -35,6 +35,7 @@ def test_update_cidc_from_csms(monkeypatch):
             mock_api_get,
             mock_insert_json,
             mock_insert_blob,
+            mock_insert_records,
             mock_email,
         ]:
             mock.reset_mock()
@@ -70,3 +71,19 @@ def test_update_cidc_from_csms(monkeypatch):
         f"Changes for {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
         f"New manifest with {len(manifest.get('samples', []))} samples",
     )
+
+    # if throws any other email, does nothing but email
+    reset()
+    mock_detect.side_effect = Exception("foo")
+    update_cidc_from_csms()
+    mock_email.assert_called_once_with(
+        CIDC_MAILING_LIST,
+        f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
+        "foo",
+    )
+
+    for mock in [
+        mock_insert_json,
+        mock_insert_blob,
+    ]:
+        mock.assert_not_called()
