@@ -8,9 +8,7 @@ from cidc_api.models.templates.csms_api import (
     insert_manifest_from_json,
     insert_manifest_into_blob,
     NewManifestError,
-    update_with_changes,
 )
-from cidc_api.models.templates.utils import insert_record_batch
 from cidc_api.shared.gcloud_client import send_email
 from cidc_api.shared.emails import CIDC_MAILING_LIST
 
@@ -44,20 +42,3 @@ def update_cidc_from_csms(*args):
                     f"Changes for {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
                     f"New manifest with {len(manifest.get('samples', []))} samples",
                 )
-
-            # STEPHEN PUT THIS IN A DIFFERENT BRANCH
-            else:
-                if changes:
-                    errors = insert_record_batch(records, session=session)
-                    if len(errors):
-                        print(f"Error(s) updating manifest (relational): {errors}")
-                    else:
-                        errors = update_with_changes(changes, session=session)
-                        if len(errors):
-                            print(f"Error(s) updating manifest (json): {errors}")
-                        else:
-                            send_email(
-                                CIDC_MAILING_LIST,
-                                f"Changes for {changes[0].trial_id} manifest {changes[0].manifest_id}",
-                                str(changes),
-                            )
