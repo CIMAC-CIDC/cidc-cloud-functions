@@ -16,9 +16,14 @@ def test_update_cidc_from_csms(monkeypatch):
         "manifest_id": "bar",
         "samples": [],
     }
+    manifest2 = {
+        "protocol_identifier": "foo",
+        "manifest_id": "baz",
+        "samples": [],
+    }
 
     mock_api_get = MagicMock()
-    mock_api_get.return_value = [manifest]
+    mock_api_get.return_value = [manifest, manifest2]
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
 
     mock_insert_json, mock_insert_blob = MagicMock(), MagicMock()
@@ -42,11 +47,12 @@ def test_update_cidc_from_csms(monkeypatch):
     # if no changes, nothing happens
     mock_detect.return_value = ({}, [])  # records, changes
     update_cidc_from_csms()
-    mock_detect.assert_called_once()
-    args, kwargs = mock_detect.call_args_list[0]
-    assert manifest in args
-    assert kwargs.get("uploader_email") == UPLOADER_EMAIL
-    assert "session" in kwargs
+    assert mock_detect.call_count == 2
+    for i in range(2):
+        args, kwargs = mock_detect.call_args_list[i]
+        assert (manifest, manifest2)[i] in args
+        assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+        assert "session" in kwargs
 
     for mock in [
         mock_insert_json,
@@ -60,27 +66,43 @@ def test_update_cidc_from_csms(monkeypatch):
     mock_detect.side_effect = NewManifestError()
     update_cidc_from_csms()
     for mock in [mock_insert_blob, mock_insert_json]:
-        mock.assert_called_once()
-        args, kwargs = mock.call_args_list[0]
-        assert manifest in args
-        assert kwargs.get("uploader_email") == UPLOADER_EMAIL
-        assert "session" in kwargs
-    mock_email.assert_called_once_with(
-        CIDC_MAILING_LIST,
-        f"Changes for {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
-        f"New manifest with {len(manifest.get('samples', []))} samples",
+        assert mock.call_count == 2
+        for i in range(2):
+            args, kwargs = mock.call_args_list[i]
+            assert (manifest, manifest2)[i] in args
+            assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+            assert "session" in kwargs
+    mock_email.assert_called_once()
+    args, kwargs = mock_email.call_args_list[0]
+    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
+        "Summary of Update from CSMS:"
+    )
+    assert (
+        f"New {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+        in args[2]
+    )
+    assert (
+        f"New {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
+        in args[2]
     )
 
     # if throws any other error, does nothing but email
     reset()
     mock_detect.side_effect = Exception("foo")
     update_cidc_from_csms()
-    mock_email.assert_called_once_with(
-        CIDC_MAILING_LIST,
-        f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
-        "foo",
+    mock_email.assert_called_once()
+    args, _ = mock_email.call_args_list[0]
+    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
+        "Summary of Update from CSMS:"
     )
-
+    assert (
+        f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}: {Exception('foo')!s}"
+        in args[2]
+    )
+    assert (
+        f"Problem with {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')}: {Exception('foo')!s}"
+        in args[2]
+    )
     for mock in [
         mock_insert_json,
         mock_insert_blob,
