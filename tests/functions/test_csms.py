@@ -35,7 +35,6 @@ def test_update_cidc_from_csms(monkeypatch):
             mock_api_get,
             mock_insert_json,
             mock_insert_blob,
-            mock_insert_records,
             mock_email,
         ]:
             mock.reset_mock()
