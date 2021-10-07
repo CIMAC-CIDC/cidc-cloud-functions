@@ -42,3 +42,10 @@ def update_cidc_from_csms(*args):
                     f"Changes for {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
                     f"New manifest with {len(manifest.get('samples', []))} samples",
                 )
+
+            except Exception as e:
+                send_email(
+                    CIDC_MAILING_LIST,
+                    f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}",
+                    str(e),
+                )

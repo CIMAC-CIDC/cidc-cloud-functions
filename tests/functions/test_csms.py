@@ -71,7 +71,7 @@ def test_update_cidc_from_csms(monkeypatch):
         f"New manifest with {len(manifest.get('samples', []))} samples",
     )
 
-    # if throws any other email, does nothing but email
+    # if throws any other error, does nothing but email
     reset()
     mock_detect.side_effect = Exception("foo")
     update_cidc_from_csms()
