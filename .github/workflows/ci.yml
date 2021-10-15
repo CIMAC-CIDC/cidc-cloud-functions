@@ -66,6 +66,10 @@ jobs:
             topic: assay_or_analysis_upload_complete
             timeout: 540
             memory: 1024
+          - name: update_cidc_from_csms
+            topic: csms_trigger
+            timeout: 540
+            memory: 1024
     steps:
       - uses: actions/checkout@v2
       - name: Set up Cloud SDK
