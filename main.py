@@ -9,6 +9,7 @@ from functions import (
     derive_files_from_assay_or_analysis_upload,
     disable_inactive_users,
     refresh_download_permissions,
+    update_cidc_from_csms,
 )
 
 from flask import Flask, request, jsonify
