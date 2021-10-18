@@ -9,3 +9,4 @@ from .upload_postprocessing import (
 from .auth0 import store_auth0_logs
 from .visualizations import vis_preprocessing
 from .users import disable_inactive_users, refresh_download_permissions
+from .csms import update_cidc_from_csms
