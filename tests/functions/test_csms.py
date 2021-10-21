@@ -65,7 +65,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
 
     # if matches on the trial_id, only changes those
     mock_detect.return_value = ({}, [])  # records, changes
-    match_trial_event = make_pubsub_event(f"trial_id=foo&manifest_id=*")
+    match_trial_event = make_pubsub_event(str({"trial_id": "foo", "manifest_id": "*"}))
     update_cidc_from_csms(match_trial_event, None)
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 2
@@ -95,7 +95,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     reset()
     # if matches on the manifest_id, only changes that one
     # manifest_id is asserted to be unique in the CIDC database
-    match_trial_event = make_pubsub_event(f"trial_id=*&manifest_id=baz")
+    match_trial_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "baz"}))
     update_cidc_from_csms(match_trial_event, None)
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 1
@@ -124,7 +124,9 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     reset()
     # if matches on the trial_id and manifest_id, only changes that one
     mock_detect.return_value = ({}, [])  # records, changes
-    match_trial_event = make_pubsub_event(f"trial_id=foo&manifest_id=bar")
+    match_trial_event = make_pubsub_event(
+        str({"trial_id": "foo", "manifest_id": "bar"})
+    )
     update_cidc_from_csms(match_trial_event, None)
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 1
@@ -153,7 +155,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     reset()
     # if matches none, does nothing
     mock_detect.return_value = ({}, [])  # records, changes
-    match_trial_event = make_pubsub_event(f"trial_id=*&manifest_id=foo")
+    match_trial_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "foo"}))
     update_cidc_from_csms(match_trial_event, None)
     for mock in [mock_insert_blob, mock_insert_json, mock_email]:
         assert mock.call_count == 0
@@ -195,7 +197,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
 
     # if bad-key but correctly formatted event data, error directly
     mock_detect.side_effect = Exception("foo")
-    bad_event = make_pubsub_event("key=value")
+    bad_event = make_pubsub_event(str({"key": "value"}))
     with pytest.raises(
         Exception, match="Both trial_id and manifest_id matching must be provided"
     ):
@@ -236,7 +238,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     mock_detect = MagicMock()
     monkeypatch.setattr(functions.csms, "detect_manifest_changes", mock_detect)
 
-    match_all_event = make_pubsub_event("trial_id=*&manifest_id=*")
+    match_all_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "*"}))
 
     def reset():
         for mock in [

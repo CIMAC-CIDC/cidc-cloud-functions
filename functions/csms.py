@@ -35,28 +35,29 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
     If it's a new manifest ie throws NewManifestError, put it through new manifest insert functions
     Send a singular email at the end with a description of the results of each new/changed manifest
 
-    `event` data is a url params style dict eg trial_id=trial&manifest_id=manifest
-        "trial_id" and "manifest_id" are used if provided to see whether a manifest should be processed
-        special keyword "*" matches all 
-        if one or both is not given, all manifests are considered matching that condition
-    NOTE This handling should be reconsidered once all CIDC / CSMS data is aligned and we're out of testing
+    `event` data is base64-encoded str(dict) in the form {"trial_id": "<trial>", "manifest_id": "<manifest>"}
+        values for "trial_id" and "manifest_id" are used to see whether a manifest should be processed
+        special keyword "*" matches all
+        special case recasting via dict(eval(<decoded data>)) errors, dry run of all manifests
+    NOTE This matching should be reconsidered once all CIDC / CSMS data is aligned and we're out of testing
     """
-    # TODO should we remove this handling once we're out of testing?
     try:
         # this returns the str, then convert it to a dict
         # uses event["data"] and then assumes format, so will error if no/malformatted data
         data: str = extract_pubsub_data(event)
-        data: dict = dict([tuple(kwarg.split("=")) for kwarg in data.split("&")])
+        data: dict = dict(eval(data))
     except Exception as e:
         # if anything errors, don't actually do any inserting
+        # just dry-run all of the manifest changes
         data: dict = {}
 
     email_msg = []
-    # TODO should we remove this handling once we're out of testing?
+    # TODO should we remove this matching once we're out of testing?
     if data and ("trial_id" not in data or "manifest_id" not in data):
         raise Exception(
             f"Both trial_id and manifest_id matching must be provided, you provided: {data}"
         )
+
     elif not data:
         if "data" in event:
             event["data"] = extract_pubsub_data(event)
@@ -71,24 +72,28 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
         manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging("/manifests")
 
         for manifest in manifest_iterator:
-            # TODO should we remove this handling once we're out of testing?
+            # TODO should we remove this matching once we're out of testing?
             # peeking ahead to check
             trial_id, manifest_id, _ = _extract_info_from_manifest(
                 manifest, session=session
             )
-            # when x not in passed data, data.get("x", x) == x so no manifests are skipped based on x
+            # when x not in data ie dry-run, data.get("x", x) == x so no manifests are skipped based on x
             if data.get("trial_id", trial_id) not in (trial_id, "*") or data.get(
                 "manifest_id", manifest_id
             ) not in (manifest_id, "*"):
                 continue
 
             try:
-                detect_manifest_changes(
+                # returns list of model instances, but we're only dealing with new manifests
+                # # using a different function, so we don't need to catch a change on any other manifest
+                # throws an error if any change to critical functions, so we do need catch those
+                _ = detect_manifest_changes(
                     manifest, uploader_email=UPLOADER_EMAIL, session=session
                 )
+                # with updates within API's detect_manifest_changes() itself, we can capture
+                # # these changes and insert new manifests here, eliminating NewManifestError altogether
 
             except NewManifestError:
-
                 if data:
                     # relational hook
                     insert_manifest_from_json(
