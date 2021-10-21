@@ -68,6 +68,8 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
             f"Both trial_id and manifest_id matching must be provided, no actual data changes will be made. You provided: {event!s}"
         )
 
+    logger.info(str(data))
+
     with sqlalchemy_session() as session:
         manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging("/manifests")
 
