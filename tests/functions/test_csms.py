@@ -11,6 +11,56 @@ from cidc_api.shared.emails import CIDC_MAILING_LIST
 
 
 @with_app_context
+def test_update_cidc_from_csms_status_filtering(monkeypatch):
+    manifest = {
+        "protocol_identifier": "foo",
+        "manifest_id": "bar",
+        "samples": [],
+    }
+    manifest2 = {
+        "protocol_identifier": "foobar",
+        "manifest_id": "baz",
+        "samples": [],
+        "status": "qc_complete",
+    }
+    manifest3 = {
+        "protocol_identifier": "foo",
+        "manifest_id": "biz",
+        "samples": [],
+        "status": "draft",
+    }
+
+    mock_api_get = MagicMock()
+    mock_api_get.return_value = [manifest, manifest2, manifest3]
+    mock_extract_info_from_manifest = MagicMock()
+    mock_extract_info_from_manifest.return_value = ("trial", "manifest", [])
+    monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
+    monkeypatch.setattr(
+        functions.csms, "_extract_info_from_manifest", mock_extract_info_from_manifest
+    )
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(functions.csms, "logger", mock_logger)
+
+    # since matching filtering is after status filtering, don't match anything to end quickly
+    # copied from test of no match below, which shows this won't call anything further
+    match_trial_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "foo"}))
+    update_cidc_from_csms(match_trial_event, None)
+
+    assert mock_extract_info_from_manifest.call_count == 2
+    assert any(
+        manifest in args for args, _ in mock_extract_info_from_manifest.call_args_list
+    )
+    assert any(
+        manifest2 in args for args, _ in mock_extract_info_from_manifest.call_args_list
+    )
+    assert all(
+        manifest3 not in args
+        for args, _ in mock_extract_info_from_manifest.call_args_list
+    )
+
+
+@with_app_context
 def test_update_cidc_from_csms_matching_some(monkeypatch):
     manifest = {
         "protocol_identifier": "foo",
