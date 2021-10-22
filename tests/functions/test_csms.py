@@ -15,23 +15,29 @@ def test_update_cidc_from_csms_status_filtering(monkeypatch):
     manifest = {
         "protocol_identifier": "foo",
         "manifest_id": "bar",
-        "samples": [],
+        "samples": [{}],
     }
     manifest2 = {
         "protocol_identifier": "foobar",
         "manifest_id": "baz",
-        "samples": [],
+        "samples": [{}],  # len != 0
         "status": "qc_complete",
     }
     manifest3 = {
         "protocol_identifier": "foo",
         "manifest_id": "biz",
-        "samples": [],
+        "samples": [{}],  # len != 0
         "status": "draft",
+    }
+    manifest4 = {
+        "protocol_identifier": "foo",
+        "manifest_id": "biz",
+        "samples": [],
+        "status": "qc_complete",
     }
 
     mock_api_get = MagicMock()
-    mock_api_get.return_value = [manifest, manifest2, manifest3]
+    mock_api_get.return_value = [manifest, manifest2, manifest3, manifest4]
     mock_extract_info_from_manifest = MagicMock()
     mock_extract_info_from_manifest.return_value = ("trial", "manifest", [])
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
@@ -58,6 +64,10 @@ def test_update_cidc_from_csms_status_filtering(monkeypatch):
         manifest3 not in args
         for args, _ in mock_extract_info_from_manifest.call_args_list
     )
+    assert all(
+        manifest4 not in args
+        for args, _ in mock_extract_info_from_manifest.call_args_list
+    )
 
 
 @with_app_context
@@ -65,17 +75,17 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     manifest = {
         "protocol_identifier": "foo",
         "manifest_id": "bar",
-        "samples": [],
+        "samples": [{}],  # len != 0
     }
     manifest2 = {
         "protocol_identifier": "foobar",
         "manifest_id": "baz",
-        "samples": [],
+        "samples": [{}],  # len != 0
     }
     manifest3 = {
         "protocol_identifier": "foo",
         "manifest_id": "biz",
-        "samples": [],
+        "samples": [{}],  # len != 0
     }
 
     mock_api_get = MagicMock()
@@ -259,12 +269,12 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     manifest = {
         "protocol_identifier": "foo",
         "manifest_id": "bar",
-        "samples": [],
+        "samples": [{}],  # len != 0
     }
     manifest2 = {
         "protocol_identifier": "foo",
         "manifest_id": "baz",
-        "samples": [],
+        "samples": [{}],  # len != 0
     }
 
     mock_api_get = MagicMock()
