@@ -68,12 +68,19 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
             f"Both trial_id and manifest_id matching must be provided, no actual data changes will be made. You provided: {event!s}"
         )
 
-    logger.info(str(data))
+    logger.info(
+        f"Call to update CIDC from CSMS matching: {data!s}\nIf {dict()!s}, then dry-run all."
+    )
 
     with sqlalchemy_session() as session:
         manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging("/manifests")
 
         for manifest in manifest_iterator:
+            # only test those manifests that are qc_complete
+            # if they're not qc_complete, _extract_info_from_manifest might throw errors from _get_and_check
+            if manifest.get("status") not in ("qc_complete", None):
+                continue
+
             # TODO should we remove this matching once we're out of testing?
             # peeking ahead to check
             trial_id, manifest_id, _ = _extract_info_from_manifest(
