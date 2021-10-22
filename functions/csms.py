@@ -76,9 +76,13 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
         manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging("/manifests")
 
         for manifest in manifest_iterator:
-            # only test those manifests that are qc_complete
+            # only test those manifests that are qc_complete AND have samples
             # if they're not qc_complete, _extract_info_from_manifest might throw errors from _get_and_check
-            if manifest.get("status") not in ("qc_complete", None):
+            # CSMS has qc_complete manifests that have no samples, which errors in _extract_info_from_manifest
+            if (
+                manifest.get("status") not in ("qc_complete", None)
+                or len(manifest.get("samples", [])) == 0
+            ):
                 continue
 
             # TODO should we remove this matching once we're out of testing?
