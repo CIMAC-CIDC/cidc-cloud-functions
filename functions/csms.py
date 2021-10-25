@@ -2,6 +2,7 @@ from datetime import datetime
 import logging
 import sys
 from typing import Any, Dict, Iterator
+from urllib.parse import quote as url_escape
 
 from .settings import ENV
 from .util import (
@@ -73,27 +74,23 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
     )
 
     with sqlalchemy_session() as session:
-        manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging("/manifests")
+        url = "/manifests"
+        # only care about manifests that are qc_complete
+        match_conditions = ["status=qc_complete"]
+
+        # TODO should we remove this matching once we're out of testing?
+        # add matching conditions if not matching all
+        if data.get("manifest_id", "*") != "*":
+            match_conditions.append(f"manifest_id={url_escape(data['manifest_id'])}")
+        if data.get("trial_id", "*") != "*":
+            match_conditions.append(f"trial_id={url_escape(data['trial_id'])}")
+
+        url += "?" + "&".join(match_conditions)
+        manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging(url)
 
         for manifest in manifest_iterator:
-            # only test those manifests that are qc_complete AND have samples
-            # if they're not qc_complete, _extract_info_from_manifest might throw errors from _get_and_check
             # CSMS has qc_complete manifests that have no samples, which errors in _extract_info_from_manifest
-            if (
-                manifest.get("status") not in ("qc_complete", None)
-                or len(manifest.get("samples", [])) == 0
-            ):
-                continue
-
-            # TODO should we remove this matching once we're out of testing?
-            # peeking ahead to check
-            trial_id, manifest_id, _ = _extract_info_from_manifest(
-                manifest, session=session
-            )
-            # when x not in data ie dry-run, data.get("x", x) == x so no manifests are skipped based on x
-            if data.get("trial_id", trial_id) not in (trial_id, "*") or data.get(
-                "manifest_id", manifest_id
-            ) not in (manifest_id, "*"):
+            if len(manifest.get("samples", [])) == 0:
                 continue
 
             try:

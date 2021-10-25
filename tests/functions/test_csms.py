@@ -26,18 +26,12 @@ def test_update_cidc_from_csms_status_filtering(monkeypatch):
     manifest3 = {
         "protocol_identifier": "foo",
         "manifest_id": "biz",
-        "samples": [{}],  # len != 0
-        "status": "draft",
-    }
-    manifest4 = {
-        "protocol_identifier": "foo",
-        "manifest_id": "biz",
         "samples": [],
         "status": "qc_complete",
     }
 
     mock_api_get = MagicMock()
-    mock_api_get.return_value = [manifest, manifest2, manifest3, manifest4]
+    mock_api_get.return_value = [manifest, manifest2, manifest3]
     mock_extract_info_from_manifest = MagicMock()
     mock_extract_info_from_manifest.return_value = ("trial", "manifest", [])
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
@@ -62,10 +56,6 @@ def test_update_cidc_from_csms_status_filtering(monkeypatch):
     )
     assert all(
         manifest3 not in args
-        for args, _ in mock_extract_info_from_manifest.call_args_list
-    )
-    assert all(
-        manifest4 not in args
         for args, _ in mock_extract_info_from_manifest.call_args_list
     )
 
@@ -127,6 +117,12 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     mock_detect.return_value = ({}, [])  # records, changes
     match_trial_event = make_pubsub_event(str({"trial_id": "foo", "manifest_id": "*"}))
     update_cidc_from_csms(match_trial_event, None)
+    assert all(
+        [
+            "trial_id=foo" in args[0] and "*" not in args[0]
+            for args, _ in mock_api_get.call_args_list
+        ]
+    )
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 2
         for i in range(2):
@@ -312,6 +308,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     # if no changes, nothing happens
     mock_detect.return_value = ({}, [])  # records, changes
     update_cidc_from_csms(match_all_event, None)
+    assert all(["*" not in args[0] for args, _ in mock_api_get.call_args_list])
     assert mock_detect.call_count == 2
     for i in range(2):
         args, kwargs = mock_detect.call_args_list[i]
@@ -330,6 +327,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     reset()
     mock_detect.side_effect = NewManifestError()
     update_cidc_from_csms(match_all_event, None)
+    assert all("*" not in args for args, _ in mock_api_get.call_args_list)
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 2
         for i in range(2):
@@ -355,6 +353,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     reset()
     mock_detect.side_effect = Exception("foo")
     update_cidc_from_csms(match_all_event, None)
+    assert all("*" not in args for args, _ in mock_api_get.call_args_list)
     mock_email.assert_called_once()
     args, _ = mock_email.call_args_list[0]
     assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
