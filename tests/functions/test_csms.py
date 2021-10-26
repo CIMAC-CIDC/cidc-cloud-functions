@@ -13,32 +13,21 @@ from cidc_api.shared.emails import CIDC_MAILING_LIST
 @with_app_context
 def test_update_cidc_from_csms_matching_some(monkeypatch):
     manifest = {
-        "protocol_identifier": "foo",
         "manifest_id": "bar",
-        "samples": [{}],  # len != 0
+        "samples": [{"protocol_identifier": "foo",}],  # len != 0
     }
     manifest2 = {
-        "protocol_identifier": "foobar",
         "manifest_id": "baz",
-        "samples": [{}],  # len != 0
+        "samples": [{"protocol_identifier": "foobar",}],  # len != 0
     }
     manifest3 = {
-        "protocol_identifier": "foo",
         "manifest_id": "biz",
-        "samples": [{}],  # len != 0
+        "samples": [{"protocol_identifier": "foo",}],  # len != 0
     }
 
     mock_api_get = MagicMock()
     mock_api_get.return_value = [manifest, manifest2, manifest3]
-    mock_extract_info_from_manifest = lambda m, session: (
-        m["protocol_identifier"],
-        m["manifest_id"],
-        [],
-    )
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
-    monkeypatch.setattr(
-        functions.csms, "_extract_info_from_manifest", mock_extract_info_from_manifest
-    )
 
     mock_insert_json, mock_insert_blob = MagicMock(), MagicMock()
     monkeypatch.setattr(functions.csms, "insert_manifest_from_json", mock_insert_json)
@@ -69,10 +58,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     match_trial_event = make_pubsub_event(str({"trial_id": "foo", "manifest_id": "*"}))
     update_cidc_from_csms(match_trial_event, None)
     assert all(
-        [
-            "trial_id=foo" in args[0] and "manifest_id" not in args[0]
-            for args, _ in mock_api_get.call_args_list
-        ]
+        ["manifest_id" not in args[0] for args, _ in mock_api_get.call_args_list]
     )
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 2
@@ -106,10 +92,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     match_trial_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "baz"}))
     update_cidc_from_csms(match_trial_event, None)
     assert all(
-        [
-            "manifest_id=baz" in args[0] and "trial_id" not in args[0]
-            for args, _ in mock_api_get.call_args_list
-        ]
+        ["manifest_id=baz" in args[0] for args, _ in mock_api_get.call_args_list]
     )
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 1
@@ -144,10 +127,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     )
     update_cidc_from_csms(match_trial_event, None)
     assert all(
-        [
-            "trial_id=foo" in args[0] and "manifest_id=bar" in args[0]
-            for args, _ in mock_api_get.call_args_list
-        ]
+        ["manifest_id=bar" in args[0] for args, _ in mock_api_get.call_args_list]
     )
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 1
@@ -179,10 +159,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     mock_api_get.return_value = []
     match_trial_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "foo"}))
     assert all(
-        [
-            "manifest_id=foo" in args[0] and "trial_id" not in args[0]
-            for args, _ in mock_api_get.call_args_list
-        ]
+        ["manifest_id=foo" in args[0] for args, _ in mock_api_get.call_args_list]
     )
     update_cidc_from_csms(match_trial_event, None)
     for mock in [mock_insert_blob, mock_insert_json, mock_email]:
@@ -194,17 +171,14 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     mock_api_get.return_value = [manifest, manifest2, manifest3]
     update_cidc_from_csms({}, None)
     assert all(
-        [
-            "trial_id" not in args[0] and "manifest_id" not in args[0]
-            for args, _ in mock_api_get.call_args_list
-        ]
+        ["manifest_id" not in args[0] for args, _ in mock_api_get.call_args_list]
     )
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 0
     mock_logger.warning.assert_called_once()
     args, _ = mock_logger.warning.call_args_list[0]
     assert (
-        "Both trial_id and manifest_id matching must be provided, no actual data changes will be made."
+        "manifest_id matching must be provided, no actual data changes will be made."
         in args[0]
     )
 
@@ -214,7 +188,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        "Both trial_id and manifest_id matching must be provided, no actual data changes will be made."
+        "manifest_id matching must be provided, no actual data changes will be made."
         in args[2]
     )
     assert (
@@ -233,36 +207,24 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     # if bad-key but correctly formatted event data, error directly
     mock_detect.side_effect = Exception("foo")
     bad_event = make_pubsub_event(str({"key": "value"}))
-    with pytest.raises(
-        Exception, match="Both trial_id and manifest_id matching must be provided"
-    ):
+    with pytest.raises(Exception, match="manifest_id matching must be provided"):
         update_cidc_from_csms(bad_event, None)
 
 
 @with_app_context
 def test_update_cidc_from_csms_matching_all(monkeypatch):
     manifest = {
-        "protocol_identifier": "foo",
         "manifest_id": "bar",
-        "samples": [{}],  # len != 0
+        "samples": [{"protocol_identifier": "foo",}],  # len != 0
     }
     manifest2 = {
-        "protocol_identifier": "foo",
         "manifest_id": "baz",
-        "samples": [{}],  # len != 0
+        "samples": [{"protocol_identifier": "foo",}],  # len != 0
     }
 
     mock_api_get = MagicMock()
     mock_api_get.return_value = [manifest, manifest2]
-    mock_extract_info_from_manifest = lambda m, session: (
-        m["protocol_identifier"],
-        m["manifest_id"],
-        [],
-    )
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
-    monkeypatch.setattr(
-        functions.csms, "_extract_info_from_manifest", mock_extract_info_from_manifest
-    )
 
     mock_insert_json, mock_insert_blob = MagicMock(), MagicMock()
     monkeypatch.setattr(functions.csms, "insert_manifest_from_json", mock_insert_json)
