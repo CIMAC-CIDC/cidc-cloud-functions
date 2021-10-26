@@ -87,16 +87,18 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
         for manifest in manifest_iterator:
             # TODO should we remove this matching once we're out of testing?
             samples = manifest.get("samples", [])
-            trial_id = _get_and_check(
-                obj=samples,
-                key="protocol_identifier",
-                msg=f"No consistent protocol_identifier defined for samples on manifest {manifest.get('manifest_id')}",
-            )
-            # CSMS has qc_complete manifests that have no samples, which errors in _extract_info_from_manifest
-            if len(samples) == 0:
+            try:
+                trial_id = _get_and_check(
+                    obj=samples,
+                    key="protocol_identifier",
+                    msg=f"No consistent protocol_identifier defined for samples on manifest {manifest.get('manifest_id')}",
+                )
+            except:
+                # if it doesn't have a consistent protocol_identifier, just skip it
                 continue
+
             # trial_id matching has to be done via _get_and_check as it is only stored on the samples
-            elif (
+            if (
                 "trial_id" in data
                 and data["trial_id"] != "*"
                 and trial_id != data["trial_id"]
