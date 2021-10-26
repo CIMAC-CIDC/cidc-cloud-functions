@@ -13,7 +13,7 @@ from .util import (
 
 from cidc_api.csms import get_with_paging
 from cidc_api.models.templates.csms_api import (
-    _extract_info_from_manifest,
+    _get_and_check,
     detect_manifest_changes,
     insert_manifest_from_json,
     insert_manifest_into_blob,
@@ -54,19 +54,17 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
 
     email_msg = []
     # TODO should we remove this matching once we're out of testing?
-    if data and ("trial_id" not in data or "manifest_id" not in data):
-        raise Exception(
-            f"Both trial_id and manifest_id matching must be provided, you provided: {data}"
-        )
+    if data and ("manifest_id" not in data):
+        raise Exception(f"manifest_id matching must be provided, you provided: {data}")
 
     elif not data:
         if "data" in event:
             event["data"] = extract_pubsub_data(event)
         logger.warning(
-            f"Both trial_id and manifest_id matching must be provided, no actual data changes will be made. Provided: {event!s}"
+            f"manifest_id matching must be provided, no actual data changes will be made. Provided: {event!s}"
         )
         email_msg.append(
-            f"Both trial_id and manifest_id matching must be provided, no actual data changes will be made. You provided: {event!s}"
+            f"manifest_id matching must be provided, no actual data changes will be made. You provided: {event!s}"
         )
 
     logger.info(
@@ -82,15 +80,27 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
         # add matching conditions if not matching all
         if data.get("manifest_id", "*") != "*":
             match_conditions.append(f"manifest_id={url_escape(data['manifest_id'])}")
-        if data.get("trial_id", "*") != "*":
-            match_conditions.append(f"trial_id={url_escape(data['trial_id'])}")
 
         url += "?" + "&".join(match_conditions)
         manifest_iterator: Iterator[Dict[str, Any]] = get_with_paging(url)
 
         for manifest in manifest_iterator:
+            # TODO should we remove this matching once we're out of testing?
+            samples = manifest.get("samples", [])
             # CSMS has qc_complete manifests that have no samples, which errors in _extract_info_from_manifest
-            if len(manifest.get("samples", [])) == 0:
+            if len(samples) == 0:
+                continue
+            # trial_id matching has to be done via _get_and_check as it is only stored on the samples
+            elif (
+                "trial_id" in data
+                and data["trial_id"] != "*"
+                and _get_and_check(
+                    obj=samples,
+                    key="protocol_identifier",
+                    msg=f"No consistent protocol_identifier defined for samples on manifest {data['manifest_id']}",
+                )
+                != data["trial_id"]
+            ):
                 continue
 
             try:
@@ -127,6 +137,8 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 email_msg.append(
                     f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}: {e!s}",
                 )
+            finally:
+                logger.info(f"Email: {email_msg}")
 
         if email_msg:
             send_email(
