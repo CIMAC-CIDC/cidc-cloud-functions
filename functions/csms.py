@@ -137,7 +137,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
 
             except Exception as e:
                 logger.error(
-                    f"Error from {e.__traceback__.tb_frame if hasattr(e, '__traceback__') and e.__traceback__ else None}: {e!r}"
+                    f"Error with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}"
                 )
                 email_msg.append(
                     f"Problem with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}",
