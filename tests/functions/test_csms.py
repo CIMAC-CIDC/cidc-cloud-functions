@@ -73,15 +73,15 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        f"New {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+        f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
         in args[2]
     )
     assert (
-        f"New {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')}"
+        f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}"
         not in args[2]
     )
     assert (
-        f"New {manifest3.get('protocol_identifier')} manifest {manifest3.get('manifest_id')} with {len(manifest3.get('samples', []))} samples"
+        f"New {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')} with {len(manifest3.get('samples', []))} samples"
         in args[2]
     )
 
@@ -106,15 +106,15 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        f"New {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}"
+        f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')}"
         not in args[2]
     )
     assert (
-        f"New {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
+        f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
         in args[2]
     )
     assert (
-        f"New {manifest3.get('protocol_identifier')} manifest {manifest3.get('manifest_id')}"
+        f"New {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')}"
         not in args[2]
     )
 
@@ -141,15 +141,15 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        f"New {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+        f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
         in args[2]
     )
     assert (
-        f"New {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')}"
+        f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}"
         not in args[2]
     )
     assert (
-        f"New {manifest3.get('protocol_identifier')} manifest {manifest3.get('manifest_id')}"
+        f"New {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')}"
         not in args[2]
     )
 
@@ -192,15 +192,15 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         in args[2]
     )
     assert (
-        f"Would add new {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+        f"Would add new {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
         in args[2]
     )
     assert (
-        f"Would add new {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
+        f"Would add new {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
         in args[2]
     )
     assert (
-        f"Would add new {manifest3.get('protocol_identifier')} manifest {manifest3.get('manifest_id')} with {len(manifest3.get('samples', []))} samples"
+        f"Would add new {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')} with {len(manifest3.get('samples', []))} samples"
         in args[2]
     )
 
@@ -282,11 +282,11 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        f"New {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+        f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
         in args[2]
     )
     assert (
-        f"New {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
+        f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
         in args[2]
     )
 
@@ -301,11 +301,11 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}: {Exception('foo')!s}"
+        f"Problem with {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')}: {Exception('foo')!r}"
         in args[2]
     )
     assert (
-        f"Problem with {manifest2.get('protocol_identifier')} manifest {manifest2.get('manifest_id')}: {Exception('foo')!s}"
+        f"Problem with {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}: {Exception('foo')!r}"
         in args[2]
     )
     for mock in [

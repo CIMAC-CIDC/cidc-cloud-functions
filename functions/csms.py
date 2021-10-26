@@ -90,7 +90,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
             trial_id = _get_and_check(
                 obj=samples,
                 key="protocol_identifier",
-                msg=f"No consistent protocol_identifier defined for samples on manifest {data['manifest_id']}",
+                msg=f"No consistent protocol_identifier defined for samples on manifest {manifest.get('manifest_id')}",
             )
             # CSMS has qc_complete manifests that have no samples, which errors in _extract_info_from_manifest
             if len(samples) == 0:
@@ -135,15 +135,14 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
 
             except Exception as e:
                 logger.error(
-                    f"Error from {e.___traceback__.tb_frame if e.__traceback__ else None}: {e!r}"
+                    f"Error from {e.__traceback__.tb_frame if hasattr(e, '__traceback__') and e.__traceback__ else None}: {e!r}"
                 )
                 email_msg.append(
                     f"Problem with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}",
                 )
-            finally:
-                logger.info(f"Email: {email_msg}")
 
         if email_msg:
+            logger.info(f"Email: {email_msg}")
             send_email(
                 CIDC_MAILING_LIST,
                 f"Summary of Update from CSMS: {datetime.now()}",
