@@ -87,6 +87,11 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
         for manifest in manifest_iterator:
             # TODO should we remove this matching once we're out of testing?
             samples = manifest.get("samples", [])
+            trial_id = _get_and_check(
+                obj=samples,
+                key="protocol_identifier",
+                msg=f"No consistent protocol_identifier defined for samples on manifest {manifest.get('manifest_id')}",
+            )
             # CSMS has qc_complete manifests that have no samples, which errors in _extract_info_from_manifest
             if len(samples) == 0:
                 continue
@@ -94,12 +99,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
             elif (
                 "trial_id" in data
                 and data["trial_id"] != "*"
-                and _get_and_check(
-                    obj=samples,
-                    key="protocol_identifier",
-                    msg=f"No consistent protocol_identifier defined for samples on manifest {data['manifest_id']}",
-                )
-                != data["trial_id"]
+                and trial_id != data["trial_id"]
             ):
                 continue
 
@@ -126,21 +126,23 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                     )
 
                     email_msg.append(
-                        f"New {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
                     )
                 else:
                     email_msg.append(
-                        f"Would add new {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
                     )
 
             except Exception as e:
-                email_msg.append(
-                    f"Problem with {manifest.get('protocol_identifier')} manifest {manifest.get('manifest_id')}: {e!s}",
+                logger.error(
+                    f"Error from {e.__traceback__.tb_frame if hasattr(e, '__traceback__') and e.__traceback__ else None}: {e!r}"
                 )
-            finally:
-                logger.info(f"Email: {email_msg}")
+                email_msg.append(
+                    f"Problem with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}",
+                )
 
         if email_msg:
+            logger.info(f"Email: {email_msg}")
             send_email(
                 CIDC_MAILING_LIST,
                 f"Summary of Update from CSMS: {datetime.now()}",
