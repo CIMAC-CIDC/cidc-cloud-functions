@@ -4,7 +4,7 @@ import sys
 from typing import Any, Dict, Iterator
 from urllib.parse import quote as url_escape
 
-from .settings import ENV
+from .settings import ENV, INTERNAL_USER_EMAIL
 from .util import (
     BackgroundContext,
     extract_pubsub_data,
@@ -25,8 +25,6 @@ from cidc_api.shared.emails import CIDC_MAILING_LIST
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.DEBUG if ENV == "dev" else logging.INFO)
-
-UPLOADER_EMAIL = ""
 
 
 def update_cidc_from_csms(event: dict, context: BackgroundContext):
@@ -110,7 +108,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 # # using a different function, so we don't need to catch a change on any other manifest
                 # throws an error if any change to critical functions, so we do need catch those
                 _ = detect_manifest_changes(
-                    manifest, uploader_email=UPLOADER_EMAIL, session=session
+                    manifest, INTERNAL_USER_EMAIL=INTERNAL_USER_EMAIL, session=session
                 )
                 # with updates within API's detect_manifest_changes() itself, we can capture
                 # # these changes and insert new manifests here, eliminating NewManifestError altogether
@@ -119,12 +117,16 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 if data:
                     # relational hook
                     insert_manifest_from_json(
-                        manifest, uploader_email=UPLOADER_EMAIL, session=session
+                        manifest,
+                        INTERNAL_USER_EMAIL=INTERNAL_USER_EMAIL,
+                        session=session,
                     )
 
                     # schemas JSON blob hook
                     insert_manifest_into_blob(
-                        manifest, uploader_email=UPLOADER_EMAIL, session=session
+                        manifest,
+                        INTERNAL_USER_EMAIL=INTERNAL_USER_EMAIL,
+                        session=session,
                     )
 
                     email_msg.append(

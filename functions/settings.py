@@ -46,6 +46,9 @@ AUTH0_CLIENT_SECRET = secrets.get("AUTH0_CLIENT_SECRET")
 # SendGrid config
 SENDGRID_API_KEY = secrets.get("SENDGRID_API_KEY")
 
+# Internal User For eg pseudo uploads
+INTERNAL_USER_EMAIL = secrets.get("INTERNAL_USER_EMAIL")
+
 # Check for configuration that must be defined if we're running in GCP
 if GCP_PROJECT:
     assert GOOGLE_DATA_BUCKET is not None
