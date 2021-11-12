@@ -4,7 +4,11 @@ from unittest.mock import MagicMock
 from tests.util import make_pubsub_event, with_app_context
 
 import functions.csms
-from functions.csms import UPLOADER_EMAIL, update_cidc_from_csms
+
+# mock the env setting
+functions.csms.INTERNAL_USER_EMAIL = "user@email.com"
+
+from functions.csms import INTERNAL_USER_EMAIL, update_cidc_from_csms
 
 from cidc_api.models.templates.csms_api import NewManifestError
 from cidc_api.shared.emails import CIDC_MAILING_LIST
@@ -65,7 +69,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         for i in range(2):
             args, kwargs = mock.call_args_list[i]
             assert (manifest, manifest3)[i] in args
-            assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+            assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
             assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -98,7 +102,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         assert mock.call_count == 1
         args, kwargs = mock.call_args_list[0]
         assert manifest2 in args
-        assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+        assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -133,7 +137,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         assert mock.call_count == 1
         args, kwargs = mock.call_args_list[0]
         assert manifest in args
-        assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+        assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -254,7 +258,8 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     for i in range(2):
         args, kwargs = mock_detect.call_args_list[i]
         assert (manifest, manifest2)[i] in args
-        assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+        print(kwargs)
+        assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
 
     for mock in [
@@ -274,7 +279,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         for i in range(2):
             args, kwargs = mock.call_args_list[i]
             assert (manifest, manifest2)[i] in args
-            assert kwargs.get("uploader_email") == UPLOADER_EMAIL
+            assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
             assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
