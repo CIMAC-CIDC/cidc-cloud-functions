@@ -69,7 +69,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         for i in range(2):
             args, kwargs = mock.call_args_list[i]
             assert (manifest, manifest3)[i] in args
-            assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
+            assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
             assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -102,7 +102,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         assert mock.call_count == 1
         args, kwargs = mock.call_args_list[0]
         assert manifest2 in args
-        assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
+        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -137,7 +137,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         assert mock.call_count == 1
         args, kwargs = mock.call_args_list[0]
         assert manifest in args
-        assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
+        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -259,7 +259,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         args, kwargs = mock_detect.call_args_list[i]
         assert (manifest, manifest2)[i] in args
         print(kwargs)
-        assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
+        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
 
     for mock in [
@@ -279,7 +279,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         for i in range(2):
             args, kwargs = mock.call_args_list[i]
             assert (manifest, manifest2)[i] in args
-            assert kwargs.get("INTERNAL_USER_EMAIL") == INTERNAL_USER_EMAIL
+            assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
             assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
