@@ -108,7 +108,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 # # using a different function, so we don't need to catch a change on any other manifest
                 # throws an error if any change to critical functions, so we do need catch those
                 _ = detect_manifest_changes(
-                    manifest, INTERNAL_USER_EMAIL=INTERNAL_USER_EMAIL, session=session
+                    manifest, uploader_email=INTERNAL_USER_EMAIL, session=session
                 )
                 # with updates within API's detect_manifest_changes() itself, we can capture
                 # # these changes and insert new manifests here, eliminating NewManifestError altogether
@@ -117,16 +117,12 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 if data:
                     # relational hook
                     insert_manifest_from_json(
-                        manifest,
-                        INTERNAL_USER_EMAIL=INTERNAL_USER_EMAIL,
-                        session=session,
+                        manifest, uploader_email=INTERNAL_USER_EMAIL, session=session,
                     )
 
                     # schemas JSON blob hook
                     insert_manifest_into_blob(
-                        manifest,
-                        INTERNAL_USER_EMAIL=INTERNAL_USER_EMAIL,
-                        session=session,
+                        manifest, uploader_email=INTERNAL_USER_EMAIL, session=session,
                     )
 
                     email_msg.append(
