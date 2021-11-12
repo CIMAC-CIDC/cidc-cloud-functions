@@ -91,8 +91,9 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                     key="protocol_identifier",
                     msg=f"No consistent protocol_identifier defined for samples on manifest {manifest.get('manifest_id')}",
                 )
-            except:
+            except Exception as e:
                 # if it doesn't have a consistent protocol_identifier, just skip it
+                logger.error(str(e))
                 continue
 
             # trial_id matching has to be done via _get_and_check as it is only stored on the samples
@@ -101,13 +102,16 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 and data["trial_id"] != "*"
                 and trial_id != data["trial_id"]
             ):
+                logger.info(
+                    f"Skipping manifest {manifest.get('manifest_id')} from {trial_id} != {data['trial_id']}"
+                )
                 continue
 
             try:
                 # returns list of model instances, but we're only dealing with new manifests
                 # # using a different function, so we don't need to catch a change on any other manifest
                 # throws an error if any change to critical functions, so we do need catch those
-                _ = detect_manifest_changes(
+                _, changes = detect_manifest_changes(
                     manifest, uploader_email=INTERNAL_USER_EMAIL, session=session
                 )
                 # with updates within API's detect_manifest_changes() itself, we can capture
@@ -125,10 +129,16 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                         manifest, uploader_email=INTERNAL_USER_EMAIL, session=session,
                     )
 
+                    logger.info(
+                        f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                    )
                     email_msg.append(
                         f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
                     )
                 else:
+                    logger.info(
+                        f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                    )
                     email_msg.append(
                         f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
                     )
@@ -139,6 +149,11 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 )
                 email_msg.append(
                     f"Problem with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}",
+                )
+
+            else:
+                logger.info(
+                    f"Changes found for {trial_id} manifest {manifest.get('manifest_id')}: {changes}"
                 )
 
         if email_msg:
