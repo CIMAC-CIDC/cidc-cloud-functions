@@ -72,7 +72,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
     with sqlalchemy_session() as session:
         url = "/manifests"
         # only care about manifests that are qc_complete
-        match_conditions = ["status=qc_complete"]
+        match_conditions = ["status=qc_complete", "excluded=false"]
 
         # TODO should we remove this matching once we're out of testing?
         # add matching conditions if not matching all
