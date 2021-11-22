@@ -213,6 +213,36 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     bad_event = make_pubsub_event(str({"key": "value"}))
     with pytest.raises(Exception, match="manifest_id matching must be provided"):
         update_cidc_from_csms(bad_event, None)
+    mock_detect.side_effect = None
+
+    reset()
+    mock_detect.side_effect = NewManifestError()
+    mock_insert_blob.side_effect = Exception("Error from insert_manifest_into_blob")
+    match_all_event = make_pubsub_event(str({"manifest_id": "*", "trial_id": "*"}))
+    update_cidc_from_csms(match_all_event, None)
+
+    for n, mock in enumerate(
+        [
+            mock_api_get,
+            mock_insert_json,
+            mock_insert_blob,
+            mock_email,
+            mock_logger.error,
+        ]
+    ):
+        assert mock.call_count >= 1, [
+            "api",
+            "insert_json",
+            "insert_blob",
+            "email",
+            "logger",
+        ][n]
+    args, _ = mock_email.call_args_list[0]
+    assert (
+        f"Problem with {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')}"
+        in args[2]
+    )
+    assert "Error from insert_manifest_into_blob" in args[2]
 
 
 @with_app_context

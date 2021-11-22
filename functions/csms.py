@@ -108,39 +108,49 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 continue
 
             try:
-                # returns list of model instances, but we're only dealing with new manifests
-                # # using a different function, so we don't need to catch a change on any other manifest
-                # throws an error if any change to critical functions, so we do need catch those
-                _, changes = detect_manifest_changes(
-                    manifest, uploader_email=INTERNAL_USER_EMAIL, session=session
-                )
-                # with updates within API's detect_manifest_changes() itself, we can capture
-                # # these changes and insert new manifests here, eliminating NewManifestError altogether
+                try:
+                    # returns list of model instances, but we're only dealing with new manifests
+                    # # using a different function, so we don't need to catch a change on any other manifest
+                    # throws an error if any change to critical functions, so we do need catch those
+                    _, changes = detect_manifest_changes(
+                        manifest, uploader_email=INTERNAL_USER_EMAIL, session=session
+                    )
+                    # with updates within API's detect_manifest_changes() itself, we can capture
+                    # # these changes and insert new manifests here, eliminating NewManifestError altogether
 
-            except NewManifestError:
-                if data:
-                    # relational hook
-                    insert_manifest_from_json(
-                        manifest, uploader_email=INTERNAL_USER_EMAIL, session=session,
-                    )
+                except NewManifestError:
+                    if data:
+                        # relational hook
+                        insert_manifest_from_json(
+                            manifest,
+                            uploader_email=INTERNAL_USER_EMAIL,
+                            session=session,
+                        )
 
-                    # schemas JSON blob hook
-                    insert_manifest_into_blob(
-                        manifest, uploader_email=INTERNAL_USER_EMAIL, session=session,
-                    )
+                        # schemas JSON blob hook
+                        insert_manifest_into_blob(
+                            manifest,
+                            uploader_email=INTERNAL_USER_EMAIL,
+                            session=session,
+                        )
 
-                    logger.info(
-                        f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-                    )
-                    email_msg.append(
-                        f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-                    )
+                        logger.info(
+                            f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        )
+                        email_msg.append(
+                            f"New {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        )
+                    else:
+                        logger.info(
+                            f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        )
+                        email_msg.append(
+                            f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        )
+
                 else:
                     logger.info(
-                        f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-                    )
-                    email_msg.append(
-                        f"Would add new {trial_id} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
+                        f"Changes found for {trial_id} manifest {manifest.get('manifest_id')}: {changes}"
                     )
 
             except Exception as e:
@@ -151,15 +161,10 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                     f"Problem with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}",
                 )
 
-            else:
-                logger.info(
-                    f"Changes found for {trial_id} manifest {manifest.get('manifest_id')}: {changes}"
-                )
-
         if email_msg:
             logger.info(f"Email: {email_msg}")
             send_email(
                 CIDC_MAILING_LIST,
                 f"Summary of Update from CSMS: {datetime.now()}",
-                "\n".join(email_msg),
+                "\r\n".join(email_msg),
             )
