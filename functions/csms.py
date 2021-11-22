@@ -42,6 +42,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
     """
     dry_run: bool = True
 
+    # TODO should we remove this matching once we're out of testing?
     try:
         # this returns the str, then convert it to a dict
         # uses event["data"] and then assumes format, so will error if no/malformatted data
@@ -53,12 +54,12 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
         data: dict = {}
 
     else:
-        # TODO should we remove this matching once we're out of testing?
-        if "trial_id" not in data or "manifest_id" not in data:
-            raise Exception(
-                f"trial_id and manifest_id matching must both be provided, you provided: {data}"
-            )
-        dry_run = False
+        if data:
+            if "trial_id" not in data or "manifest_id" not in data:
+                raise Exception(
+                    f"trial_id and manifest_id matching must both be provided, you provided: {data}"
+                )
+            dry_run = False
 
     email_msg = []
 
