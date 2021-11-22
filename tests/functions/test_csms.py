@@ -179,12 +179,9 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     )
     for mock in [mock_insert_blob, mock_insert_json]:
         assert mock.call_count == 0
-    mock_logger.warning.assert_called_once()
-    args, _ = mock_logger.warning.call_args_list[0]
-    assert (
-        "manifest_id matching must be provided, no actual data changes will be made."
-        in args[0]
-    )
+    mock_logger.info.assert_called()
+    args, _ = mock_logger.info.call_args_list[0]
+    assert "Dry-run call to update CIDC from CSMS." in args[0]
 
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
@@ -192,7 +189,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         "Summary of Update from CSMS:"
     )
     assert (
-        "manifest_id matching must be provided, no actual data changes will be made."
+        "To make changes, trial_id and manifest_id matching must both be provided in the event data."
         in args[2]
     )
     assert (
@@ -211,7 +208,23 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     # if bad-key but correctly formatted event data, error directly
     mock_detect.side_effect = Exception("foo")
     bad_event = make_pubsub_event(str({"key": "value"}))
-    with pytest.raises(Exception, match="manifest_id matching must be provided"):
+    with pytest.raises(
+        Exception, match="trial_id and manifest_id matching must both be provided"
+    ):
+        update_cidc_from_csms(bad_event, None)
+    mock_detect.side_effect = None
+    mock_detect.side_effect = Exception("foo")
+    bad_event = make_pubsub_event(str({"manifest_id": "value"}))
+    with pytest.raises(
+        Exception, match="trial_id and manifest_id matching must both be provided"
+    ):
+        update_cidc_from_csms(bad_event, None)
+    mock_detect.side_effect = None
+    mock_detect.side_effect = Exception("foo")
+    bad_event = make_pubsub_event(str({"trial_id": "value"}))
+    with pytest.raises(
+        Exception, match="trial_id and manifest_id matching must both be provided"
+    ):
         update_cidc_from_csms(bad_event, None)
     mock_detect.side_effect = None
 
