@@ -16,7 +16,7 @@ from functions import uploads
 from functions.uploads import ingest_upload, saved_failure_status
 from functions.settings import (
     GOOGLE_ANALYSIS_GROUP_ROLE,
-    GOOGLE_DATA_BUCKET,
+    GOOGLE_ACL_DATA_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
 )
 
@@ -159,7 +159,7 @@ def test_ingest_upload(caplog, monkeypatch):
     _merge_metadata.assert_called_once()
     # Check that we got the xlsx blob metadata from GCS
     _get_bucket_and_blob.assert_called_with(
-        _storage_client, GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri
+        _storage_client, GOOGLE_ACL_DATA_BUCKET, job.gcs_xlsx_uri
     )
     # Check that we created a downloadable file for the xlsx file blob
     assert _save_blob_file.call_args[:-1][0] == (

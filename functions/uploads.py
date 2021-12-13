@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from .settings import (
     ENV,
-    GOOGLE_DATA_BUCKET,
+    GOOGLE_ACL_DATA_BUCKET,
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
@@ -26,11 +26,12 @@ from .util import (
 from flask import jsonify
 from google.cloud import storage
 from cidc_api.models import (
-    UploadJobs,
-    TrialMetadata,
     DownloadableFiles,
-    UploadJobStatus,
+    Permissions,
     prism,
+    TrialMetadata,
+    UploadJobs,
+    UploadJobStatus,
 )
 from cidc_api.shared.gcloud_client import publish_artifact_upload, _encode_and_publish
 
@@ -64,6 +65,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
     When a successful upload event is published, move the data associated
     with the upload job into the download bucket and merge the upload metadata
     into the appropriate clinical trial JSON.
+
+    Handles (expiring) IAM permissions role `CIDC_biofx` separately from the main API system.
+    See also: https://github.com/CIMAC-CIDC/cidc-api-gae/blob/fee3b303b397272bbd500289ea64976c5a510b27/cidc_api/models/models.py#L460
     """
     storage_client = storage.Client()
 
@@ -107,7 +111,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     storage_client,
                     GOOGLE_UPLOAD_BUCKET,
                     url_bundle.upload_url,
-                    GOOGLE_DATA_BUCKET,
+                    GOOGLE_ACL_DATA_BUCKET,
                     url_bundle.target_url,
                 ),
                 url_bundles,
@@ -152,9 +156,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
             _, xlsx_blob = _get_bucket_and_blob(
-                storage_client, GOOGLE_DATA_BUCKET, job.gcs_xlsx_uri
+                storage_client, GOOGLE_ACL_DATA_BUCKET, job.gcs_xlsx_uri
             )
-            full_uri = f"gs://{GOOGLE_DATA_BUCKET}/{xlsx_blob.name}"
+            full_uri = f"gs://{GOOGLE_ACL_DATA_BUCKET}/{xlsx_blob.name}"
             data_format = "Assay Metadata"
             facet_group = f"{job.upload_type}|{data_format}"
             logger.info(f"Saving {full_uri} as a downloadable_file.")
@@ -171,6 +175,10 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.metadata_patch = metadata_patch
 
         # Making files downloadable by a specified biofx analysis team group
+        # See also: https://github.com/CIMAC-CIDC/cidc-api-gae/blob/fee3b303b397272bbd500289ea64976c5a510b27/cidc_api/models/models.py#L460
+        # # This is a separate permissions system from the main API that applies the expiring IAM role
+        # # `CIDC_biofx` to the `cidc-dfci-biofx-[wes/rna]@ds` emails using a `trial/assay` prefix
+        # # while removing any existing perm for the same prefix
         assay_prefix = job.upload_type.split("_")[0]  # 'wes_bam' -> 'wes'
         if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
             analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
@@ -196,6 +204,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
         if report:
             report.result()
 
+        # Trigger download permissions for this upload job
+        Permissions.grant_download_permissions_for_upload_job(job)
+
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
     return jsonify(
@@ -207,15 +218,15 @@ def _gcs_add_prefix_reader_permission(
     storage_client: storage.Client, group_email: str, prefix: str
 ):
     """
-    Adds a conditional policy to GCS bucket (default: GOOGLE_DATA_BUCKET)
+    Adds a conditional policy to GCS bucket (default: GOOGLE_ACL_DATA_BUCKET)
     that allows `group_email` to read all objects within a `prefix`.
     """
     logger.info(
-        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET} policy"
+        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_ACL_DATA_BUCKET} policy"
     )
 
     # get the bucket
-    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
+    bucket = storage_client.get_bucket(GOOGLE_ACL_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
     policy = bucket.get_iam_policy(requested_policy_version=3)
@@ -230,7 +241,7 @@ def _gcs_add_prefix_reader_permission(
         .isoformat()
     )
 
-    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET}/objects/{cleaned_prefix}/")'
+    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_ACL_DATA_BUCKET}/objects/{cleaned_prefix}/")'
     expiry_check = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
     group_member = f"group:{group_email}"
 
