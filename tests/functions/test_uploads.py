@@ -119,7 +119,7 @@ def test_ingest_upload(caplog, monkeypatch):
     _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
     _bucket.get_iam_policy = _get_iam_policy = MagicMock("_bucket.get_iam_policy")
     _policy = _get_iam_policy.return_value = MagicMock("_policy")
-    iam_prefix = f'resource.name.startsWith("projects/_/buckets/cidc-data-staging/objects/{TRIAL_ID}/wes/")'
+    iam_prefix = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_ACL_DATA_BUCKET}/objects/{TRIAL_ID}/wes/")'
     # This set up checks handling duplicate bindings
     _policy.bindings = [
         {
@@ -144,6 +144,15 @@ def test_ingest_upload(caplog, monkeypatch):
 
     _encode_and_publish = MagicMock("_encode_and_publish")
     monkeypatch.setattr(uploads, "_encode_and_publish", _encode_and_publish)
+
+    grant_download_permissions_for_upload_job = MagicMock(
+        "grant_download_permissions_for_upload_job"
+    )
+    monkeypatch.setattr(
+        uploads.Permissions,
+        "grant_download_permissions_for_upload_job",
+        grant_download_permissions_for_upload_job,
+    )
 
     successful_upload_event = make_pubsub_event(str(job.id))
     response = ingest_upload(successful_upload_event, None).json
@@ -173,7 +182,7 @@ def test_ingest_upload(caplog, monkeypatch):
     _set_iam_policy.assert_called_once()
     # Check that we aded GCS access for biofx team
     assert _policy == _set_iam_policy.call_args[0][0]
-    assert len(_policy.bindings) == 1
+    assert len(_policy.bindings) == 1, str(_policy.bindings)
     assert _policy.bindings[0]["members"] == {"group:analysis-group@email"}
     assert _policy.bindings[0]["role"] == "projects/cidc-dfci-staging/roles/CIDC_biofx"
     assert iam_prefix in _policy.bindings[0]["condition"]["expression"]
@@ -190,6 +199,7 @@ def test_ingest_upload(caplog, monkeypatch):
     assert email_was_sent(caplog.text)
     publish_artifact_upload.assert_called()
     _encode_and_publish.assert_called()
+    grant_download_permissions_for_upload_job.assert_called()
 
 
 def test_saved_failure_status(caplog):
