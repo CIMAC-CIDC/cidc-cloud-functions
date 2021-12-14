@@ -15,7 +15,6 @@ from deepdiff import DeepSearch
 from openpyxl import load_workbook
 from cidc_api.models import DownloadableFiles, prism, TrialMetadata
 
-from .settings import GOOGLE_DATA_BUCKET
 from .util import (
     BackgroundContext,
     extract_pubsub_data,

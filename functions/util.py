@@ -10,7 +10,7 @@ from google.cloud import storage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from .settings import SQLALCHEMY_DATABASE_URI, ENV, GOOGLE_DATA_BUCKET
+from .settings import SQLALCHEMY_DATABASE_URI, ENV, GOOGLE_ACL_DATA_BUCKET
 
 _engine = None
 
@@ -87,10 +87,12 @@ def _download_blob_bytes(object_name: str) -> bytes:
     if the object doesn't exist.
     """
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket(GOOGLE_DATA_BUCKET)
+    bucket = storage_client.get_bucket(GOOGLE_ACL_DATA_BUCKET)
     blob = bucket.get_blob(object_name)
     if not blob:
-        FileNotFoundError(f"Could not find file {object_name} in {GOOGLE_DATA_BUCKET}")
+        FileNotFoundError(
+            f"Could not find file {object_name} in {GOOGLE_ACL_DATA_BUCKET}"
+        )
     return blob.download_as_string()
 
 
@@ -104,7 +106,7 @@ def upload_to_data_bucket(object_name: str, data: Union[str, bytes]) -> storage.
         return make_pseudo_blob(fname)
 
     client = storage.Client()
-    bucket = client.get_bucket(GOOGLE_DATA_BUCKET)
+    bucket = client.get_bucket(GOOGLE_ACL_DATA_BUCKET)
     blob = bucket.blob(object_name)
     blob.upload_from_string(data)
 
