@@ -205,7 +205,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
             report.result()
 
         # Trigger download permissions for this upload job
-        Permissions.grant_download_permissions_for_upload_job(job)
+        Permissions.grant_download_permissions_for_upload_job(job, session=session)
 
     # Google won't actually do anything with this response; it's
     # provided for testing purposes only.
