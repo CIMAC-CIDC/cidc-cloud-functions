@@ -72,7 +72,7 @@ jobs:
             memory: 1024
           - name: grant_all_download_permissions
             topic: grant_download_perms
-            timeout: 600
+            timeout: 540
             memory: 1024
     steps:
       - uses: actions/checkout@v2
