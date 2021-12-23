@@ -16,4 +16,4 @@ def grant_all_download_permissions(event: dict, context: BackgroundContext):
         try:
             Permissions.grant_all_download_permissions(session=session)
         except Exception as e:
-            logger.error(str(e))
+            logger.error(repr(e))
