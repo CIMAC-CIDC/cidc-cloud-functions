@@ -1,10 +1,11 @@
 google-cloud-storage~=1.35.0
 google-cloud-logging==1.13.0
 psycopg2-binary==2.8.3
-sendgrid==6.0.5
-requests==2.22.0
-pandas==1.2.4
+flask-sqlalchemy~=2.4.0
 openpyxl==3.0.7
+pandas==1.2.4
+requests==2.22.0
+sendgrid==6.0.5
 six~=1.13.0
 
 clustergrammer2==0.17.0
@@ -13,4 +14,4 @@ matplotlib==3.4.1
 statsmodels==0.12.2
 scikit_learn==0.24.2
 
-cidc-api-modules~=0.25.54
+cidc-api-modules~=0.25.55
