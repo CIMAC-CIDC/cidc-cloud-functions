@@ -26,7 +26,7 @@ secrets = get_secrets_manager(TESTING)
 # GCP config
 SQLALCHEMY_DATABASE_URI = get_sqlalchemy_database_uri(TESTING)
 GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
-GOOGLE_DATA_BUCKET = os.environ.get("GOOGLE_DATA_BUCKET")
+GOOGLE_ACL_DATA_BUCKET = os.environ.get("GOOGLE_ACL_DATA_BUCKET")
 GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
 GOOGLE_ANALYSIS_GROUP_ROLE = f"projects/{GCP_PROJECT}/roles/CIDC_biofx"
 GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
@@ -51,5 +51,5 @@ INTERNAL_USER_EMAIL = secrets.get("INTERNAL_USER_EMAIL")
 
 # Check for configuration that must be defined if we're running in GCP
 if GCP_PROJECT:
-    assert GOOGLE_DATA_BUCKET is not None
+    assert GOOGLE_ACL_DATA_BUCKET is not None
     assert GOOGLE_UPLOAD_BUCKET is not None
