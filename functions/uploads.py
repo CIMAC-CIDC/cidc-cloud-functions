@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from .settings import (
     ENV,
     GOOGLE_ACL_DATA_BUCKET,
+    GOOGLE_DATA_BUCKET,
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
@@ -111,7 +112,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     storage_client,
                     GOOGLE_UPLOAD_BUCKET,
                     url_bundle.upload_url,
-                    GOOGLE_ACL_DATA_BUCKET,
+                    GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET,
                     url_bundle.target_url,
                 ),
                 url_bundles,
@@ -156,9 +157,11 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
             _, xlsx_blob = _get_bucket_and_blob(
-                storage_client, GOOGLE_ACL_DATA_BUCKET, job.gcs_xlsx_uri
+                storage_client,
+                GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET,
+                job.gcs_xlsx_uri,
             )
-            full_uri = f"gs://{GOOGLE_ACL_DATA_BUCKET}/{xlsx_blob.name}"
+            full_uri = f"gs://{GOOGLE_DATA_BUCKET if ENV == 'prod' else GOOGLE_ACL_DATA_BUCKET}/{xlsx_blob.name}"
             data_format = "Assay Metadata"
             facet_group = f"{job.upload_type}|{data_format}"
             logger.info(f"Saving {full_uri} as a downloadable_file.")
@@ -220,13 +223,16 @@ def _gcs_add_prefix_reader_permission(
     """
     Adds a conditional policy to GCS bucket (default: GOOGLE_ACL_DATA_BUCKET)
     that allows `group_email` to read all objects within a `prefix`.
+    GOOGLE_DATA_BUCKET on prod.
     """
     logger.info(
-        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_ACL_DATA_BUCKET} policy"
+        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET if ENV == 'prod' else GOOGLE_ACL_DATA_BUCKET} policy"
     )
 
     # get the bucket
-    bucket = storage_client.get_bucket(GOOGLE_ACL_DATA_BUCKET)
+    bucket = storage_client.get_bucket(
+        GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET
+    )
 
     # get v3 policy to use condition in bindings
     policy = bucket.get_iam_policy(requested_policy_version=3)
@@ -241,7 +247,7 @@ def _gcs_add_prefix_reader_permission(
         .isoformat()
     )
 
-    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_ACL_DATA_BUCKET}/objects/{cleaned_prefix}/")'
+    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET}/objects/{cleaned_prefix}/")'
     expiry_check = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
     group_member = f"group:{group_email}"
 
