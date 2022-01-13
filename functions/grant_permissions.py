@@ -11,7 +11,7 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.DEBUG if ENV == "dev" else logging.INFO)
 
 
-def grant_all_download_permissions(event: dict, context: BackgroundContext):
+def grant_download_permissions(event: dict, context: BackgroundContext):
     try:
         # this returns the str, then convert it to a dict
         # uses event["data"] and then assumes format, so will error if no/malformatted data
@@ -21,14 +21,16 @@ def grant_all_download_permissions(event: dict, context: BackgroundContext):
         raise
 
     else:
-        trial_id = data.get("trial_id")
-        if not trial_id:
-            raise Exception(f"trial_id must both be provided, you provided: {data}")
+        trial_id, upload_type = data.get("trial_id"), data.get("upload_type")
+        if not trial_id or not upload_type:
+            raise Exception(
+                f"trial_id and upload_type must both be provided, you provided: {data}"
+            )
 
         with sqlalchemy_session() as session:
             try:
-                Permissions.grant_all_download_permissions(
-                    trial_id=trial_id, session=session
+                Permissions.grant_download_permissions(
+                    trial_id=trial_id, upload_type=upload_type, session=session
                 )
             except Exception as e:
                 logger.error(repr(e))
