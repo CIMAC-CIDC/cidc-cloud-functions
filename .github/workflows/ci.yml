@@ -70,7 +70,7 @@ jobs:
             topic: csms_trigger
             timeout: 540
             memory: 1024
-          - name: grant_all_download_permissions
+          - name: grant_download_permissions
             topic: grant_download_perms
             timeout: 540
             memory: 1024
