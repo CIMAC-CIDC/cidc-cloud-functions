@@ -70,8 +70,8 @@ def test_grant_download_permissions(monkeypatch):
     mock_blob_list.assert_called_once_with(trial_id="foo", upload_type="bar")
 
     assert mock_encode_and_publish.call_count == 2
-    print(mock_encode_and_publish.call_args_list)
     call1, call2 = mock_encode_and_publish.call_args_list
+    print(call1.args, "\n", call2.args)
     assert call1.args[1] == GOOGLE_WORKER_TOPIC and call2.args[1] == GOOGLE_WORKER_TOPIC
 
     print(call1.args[0])
