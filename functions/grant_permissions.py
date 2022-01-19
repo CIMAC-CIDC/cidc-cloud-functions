@@ -5,7 +5,7 @@ from typing import Dict, List
 from .settings import ENV, GOOGLE_WORKER_TOPIC
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
-from cidc_api.models import Permissions
+from cidc_api.models import Permissions, Users
 from cidc_api.shared.gcloud_client import (
     _encode_and_publish,
     get_blob_names,
@@ -35,9 +35,16 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
 
         with sqlalchemy_session() as session:
             try:
-                user_list: List[Permissions] = Permissions.get_user_list_for_trial_type(
+                permissions_list: List[Permissions] = Permissions.get_for_trial_type(
                     trial_id=trial_id, upload_type=upload_type, session=session
                 )
+                user_list: List[Users] = [
+                    Users.find_by_id(id=perm.granted_to_user, session=session)
+                    for perm in permissions_list
+                ]
+                user_email_list: List[str] = [u.email for u in user_list]
+                print(user_email_list)
+
                 blob_list: List = get_blob_names(
                     trial_id=trial_id, upload_type=upload_type
                 )
@@ -50,7 +57,7 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                 for chunk in blob_list_chunks:
                     kwargs = {
                         "_fn": "permissions_worker",
-                        "user_list": user_list,
+                        "user_list": user_email_list,
                         "blob_list": chunk,
                     }
                     report = _encode_and_publish(str(kwargs), GOOGLE_WORKER_TOPIC)

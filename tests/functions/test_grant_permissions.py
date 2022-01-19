@@ -6,12 +6,22 @@ from unittest.mock import MagicMock
 
 
 def test_grant_download_permissions(monkeypatch):
-    mock_user_list = MagicMock()
-    mock_user_list.return_value = ["foo@bar.com", "user@test.com"]
+    # this doesn't actually matter as we get the Users right after
+    mock_permissions_list = MagicMock()
+    mock_permissions_list.return_value = [MagicMock(), MagicMock()]
     monkeypatch.setattr(
         functions.grant_permissions.Permissions,
-        "get_user_list_for_trial_type",
-        mock_user_list,
+        "get_for_trial_type",
+        mock_permissions_list,
+    )
+
+    users = [MagicMock(), MagicMock()]
+    user_emails = ["foo@bar.com", "user@test.com"]
+    for user, email in zip(users, user_emails):
+        user.email = email
+
+    monkeypatch.setattr(
+        functions.grant_permissions.Users, "find_by_id", lambda id, session: users.pop()
     )
 
     mock_blob_list = MagicMock()
@@ -53,8 +63,8 @@ def test_grant_download_permissions(monkeypatch):
         functions.grant_permissions, "extract_pubsub_data", mock_extract_data
     )
     grant_download_permissions({}, None)
-    mock_user_list.assert_called_once()  # not once_with because of unbound session
-    _, kwargs = mock_user_list.call_args_list[0]
+    mock_permissions_list.assert_called_once()  # not once_with because of unbound session
+    _, kwargs = mock_permissions_list.call_args_list[0]
     assert kwargs.get("trial_id") == "foo"
     assert kwargs.get("upload_type") == "bar"
     mock_blob_list.assert_called_once_with(trial_id="foo", upload_type="bar")
@@ -66,11 +76,11 @@ def test_grant_download_permissions(monkeypatch):
     print(call1.args[0])
     assert eval(call1.args[0]) == {
         "_fn": "permissions_worker",
-        "user_list": mock_user_list.return_value,
+        "user_list": user_emails[::-1],  # pop above inverts
         "blob_list": mock_blob_list.return_value[:100],
     }
     assert eval(call2.args[0]) == {
         "_fn": "permissions_worker",
-        "user_list": mock_user_list.return_value,
+        "user_list": user_emails[::-1],  # pop above inverts
         "blob_list": mock_blob_list.return_value[100:],
     }
