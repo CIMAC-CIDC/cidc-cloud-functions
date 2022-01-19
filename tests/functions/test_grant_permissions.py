@@ -71,16 +71,14 @@ def test_grant_download_permissions(monkeypatch):
 
     assert mock_encode_and_publish.call_count == 2
     call1, call2 = mock_encode_and_publish.call_args_list
-    print(call1.args, "\n", call2.args)
-    assert call1.args[1] == GOOGLE_WORKER_TOPIC and call2.args[1] == GOOGLE_WORKER_TOPIC
+    assert call1[0][1] == GOOGLE_WORKER_TOPIC and call2[0][1] == GOOGLE_WORKER_TOPIC
 
-    print(call1.args[0])
-    assert eval(call1.args[0]) == {
+    assert eval(call1[0][0]) == {
         "_fn": "permissions_worker",
         "user_list": user_emails[::-1],  # pop above inverts
         "blob_list": mock_blob_list.return_value[:100],
     }
-    assert eval(call2.args[0]) == {
+    assert eval(call2[0][0]) == {
         "_fn": "permissions_worker",
         "user_list": user_emails[::-1],  # pop above inverts
         "blob_list": mock_blob_list.return_value[100:],
