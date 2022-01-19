@@ -43,7 +43,6 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                     for perm in permissions_list
                 ]
                 user_email_list: List[str] = [u.email for u in user_list]
-                print(user_email_list)
 
                 blob_list: List = get_blob_names(
                     trial_id=trial_id, upload_type=upload_type
