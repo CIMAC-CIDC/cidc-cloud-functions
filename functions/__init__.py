@@ -11,3 +11,4 @@ from .visualizations import vis_preprocessing
 from .users import disable_inactive_users, refresh_download_permissions
 from .csms import update_cidc_from_csms
 from .grant_permissions import grant_download_permissions
+from .worker import worker

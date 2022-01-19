@@ -11,6 +11,7 @@ from functions import (
     refresh_download_permissions,
     update_cidc_from_csms,
     grant_download_permissions,
+    worker,
 )
 
 from flask import Flask, request, jsonify
@@ -30,6 +31,7 @@ topics_to_functions = {
         refresh_download_permissions,
     ],
     "emails": send_email,
+    "worker": worker,
 }
 
 

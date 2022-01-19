@@ -74,6 +74,10 @@ jobs:
             topic: grant_download_perms
             timeout: 540
             memory: 1024
+          - name: worker
+            topic: worker
+            timeout: 540
+            memory: 1024
     steps:
       - uses: actions/checkout@v2
       - name: Set up Cloud SDK
