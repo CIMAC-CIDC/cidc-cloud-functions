@@ -1,10 +1,16 @@
 import logging
 import sys
+from typing import Dict, List
 
-from .settings import ENV
+from .settings import ENV, GOOGLE_WORKER_TOPIC
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
 from cidc_api.models import Permissions
+from cidc_api.shared.gcloud_client import (
+    _encode_and_publish,
+    get_blob_names,
+    grant_download_access_to_blob_names,
+)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -29,8 +35,41 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
 
         with sqlalchemy_session() as session:
             try:
-                Permissions.grant_download_permissions(
+                user_list: List[Permissions] = Permissions.get_user_list_for_trial_type(
                     trial_id=trial_id, upload_type=upload_type, session=session
                 )
+                blob_list: List = get_blob_names(
+                    trial_id=trial_id, upload_type=upload_type
+                )
+
+                n = 100  # number_of_blobs_per_chunk
+                blob_list_chunks = [
+                    blob_list[i : i + n] for i in range(0, len(blob_list), n)
+                ]
+
+                for chunk in blob_list_chunks:
+                    kwargs = {
+                        "_fn": "permissions_worker",
+                        "user_list": user_list,
+                        "blob_list": chunk,
+                    }
+                    report = _encode_and_publish(str(kwargs), GOOGLE_WORKER_TOPIC)
+                    # Wait for response from pub/sub
+                    if report:
+                        report.result()
+
             except Exception as e:
                 logger.error(repr(e))
+
+
+def permissions_worker(data: Dict[str, List[str]]):
+    user_list, blob_list = data.get("user_list"), data.get("blob_list")
+    if not user_list or not blob_list:
+        raise Exception(
+            f"user_list and blob_list must both be provided, you provided: {data}"
+        )
+
+    try:
+        grant_download_access_to_blob_names(user_list=user_list, blob_list=blob_list)
+    except Exception as e:
+        logger.error(repr(e))
