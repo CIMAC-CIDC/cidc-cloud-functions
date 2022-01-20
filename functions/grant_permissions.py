@@ -76,7 +76,9 @@ def permissions_worker(user_list: List[str] = [], blob_list: List[str] = []):
         )
 
     try:
-        # scvannost - I named user_email param suboptimally in the API; tech debt to fix
-        grant_download_access_to_blob_names(user_email=user_list, blob_list=blob_list)
+        # scvannost - I named these params suboptimally in the API; tech debt to fix
+        grant_download_access_to_blob_names(
+            user_email=user_list, blob_name_list=blob_list
+        )
     except Exception as e:
         logger.error(repr(e))
