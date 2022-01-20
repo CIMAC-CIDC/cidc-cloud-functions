@@ -68,11 +68,11 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                 logger.error(repr(e))
 
 
-def permissions_worker(data: Dict[str, List[str]]):
-    user_list, blob_list = data.get("user_list"), data.get("blob_list")
+def permissions_worker(user_list: List[str] = [], blob_list: List[str] = []):
     if not user_list or not blob_list:
+        data = {"user_list": user_list, "blob_list": blob_list}
         raise Exception(
-            f"user_list and blob_list must both be provided, you provided: {data}"
+            f"Permissions worker: user_list and blob_list must both be provided, you provided: {data}"
         )
 
     try:
