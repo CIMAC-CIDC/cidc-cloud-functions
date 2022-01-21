@@ -3,7 +3,18 @@ from .util import BackgroundContext, extract_pubsub_data
 
 
 def worker(event: dict, context: BackgroundContext):
-    """For use in parallelizing cloud function code"""
+    """
+    For use in parallelizing cloud function code
+    Takes the pubsub event data as dict
+
+    Parameters
+    ----------
+    _fn : str
+        the name of the function to call
+        must be handled in the switch below to work
+    **kwargs
+        passed to _fn
+    """
     try:
         # this returns the str, then convert it to a dict
         # uses event["data"] and then assumes format, so will error if no/malformatted data
