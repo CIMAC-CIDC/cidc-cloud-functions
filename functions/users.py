@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
+from typing import List
 
 from cidc_api.models import Users, Permissions
+from cidc_api.shared.gcloud_client import send_email
+from cidc_api.shared.emails import CIDC_MAILING_LIST
 
 from .util import sqlalchemy_session
 
@@ -9,10 +12,14 @@ def disable_inactive_users(*args):
     """Disable any users who have become inactive."""
     with sqlalchemy_session() as session:
         print("Disabling inactive users...")
-        disabled = Users.disable_inactive_users(session=session)
-        for u in disabled:
-            print(f"Disabled inactive: {u[0]}")
-        print("done.")
+        disabled: List[str] = Users.disable_inactive_users(session=session)
+        print(f"Disabled inactive: {disabled}")
+        if len(disabled):
+            send_email(
+                CIDC_MAILING_LIST,
+                f"Disabled inactivate users: {datetime.now()}",
+                f"Diabled following users: {disabled}",
+            )
 
 
 def refresh_download_permissions(*args):
