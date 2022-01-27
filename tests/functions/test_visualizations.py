@@ -1,5 +1,5 @@
 import os
-from io import BytesIO, StringIO
+from io import StringIO
 from unittest.mock import MagicMock
 
 import pytest

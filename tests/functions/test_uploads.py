@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from collections import namedtuple
 import datetime
 
@@ -15,9 +15,9 @@ from cidc_api.models import (
 from functions import uploads
 from functions.uploads import ingest_upload, saved_failure_status
 from functions.settings import (
-    GOOGLE_ANALYSIS_GROUP_ROLE,
     GOOGLE_ACL_DATA_BUCKET,
-    GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
+    GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC,
+    GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
 )
 
 from tests.util import make_pubsub_event, with_app_context
@@ -42,8 +42,6 @@ _gcs_obj_mock = namedtuple(
 def test_ingest_upload(caplog, monkeypatch):
     """Test upload data transfer functionality"""
 
-    TS_AND_PATH = "/1234/local_path1.txt"
-    ARTIFACT = {"test-prop": "test-val"}
     TRIAL_ID = "CIMAC-12345"
 
     job = UploadJobs(
@@ -116,19 +114,6 @@ def test_ingest_upload(caplog, monkeypatch):
     _api_request = _connection.api_request = MagicMock("_connection.api_request")
     _api_request.return_value = {"bindings": []}
 
-    _bucket.set_iam_policy = _set_iam_policy = MagicMock("_bucket.set_iam_policy")
-    _bucket.get_iam_policy = _get_iam_policy = MagicMock("_bucket.get_iam_policy")
-    _policy = _get_iam_policy.return_value = MagicMock("_policy")
-    iam_prefix = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_ACL_DATA_BUCKET}/objects/{TRIAL_ID}/wes/")'
-    # This set up checks handling duplicate bindings
-    _policy.bindings = [
-        {
-            "role": GOOGLE_ANALYSIS_GROUP_ROLE,
-            "members": {f"group:analysis-group@email"},
-            "condition": {"expression": iam_prefix},
-        }
-    ]
-
     # Mock metadata merging functionality
     _save_file = MagicMock("_save_file")
     monkeypatch.setattr(DownloadableFiles, "create_from_metadata", _save_file)
@@ -178,28 +163,30 @@ def test_ingest_upload(caplog, monkeypatch):
         "wes_bam|Assay Metadata",
         xlsx_blob,
     )
-    # Check that we tried to update GCS access policy
-    _set_iam_policy.assert_called_once()
-    # Check that we aded GCS access for biofx team
-    assert _policy == _set_iam_policy.call_args[0][0]
-    assert len(_policy.bindings) == 1, str(_policy.bindings)
-    assert _policy.bindings[0]["members"] == {"group:analysis-group@email"}
-    assert _policy.bindings[0]["role"] == "projects/cidc-dfci-staging/roles/CIDC_biofx"
-    assert iam_prefix in _policy.bindings[0]["condition"]["expression"]
-    _until = datetime.datetime.today() + datetime.timedelta(
-        GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS
-    )
-    assert (
-        f'request.time < timestamp("{_until.date().isoformat()}T00:00:00Z")'
-        in _policy.bindings[0]["condition"]["expression"]
-    )
 
     # Check that the job status was updated to reflect a successful upload
     assert job.status == UploadJobStatus.MERGE_COMPLETED.value
     assert email_was_sent(caplog.text)
     publish_artifact_upload.assert_called()
-    _encode_and_publish.assert_called()
     grant_download_permissions_for_upload_job.assert_called()
+
+    # Check that triggered downstream processing and biofx permisssions assignment
+    expected_calls = [
+        call(
+            str(
+                {
+                    "trial_id": TRIAL_ID,
+                    "upload_type": job.upload_type,
+                    "user_email_list": ["analysis-group@email"],
+                }
+            ),
+            GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
+        ),
+        call(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC),
+    ]
+    assert all(
+        one_call in _encode_and_publish.call_args_list for one_call in expected_calls
+    )
 
 
 def test_saved_failure_status(caplog):

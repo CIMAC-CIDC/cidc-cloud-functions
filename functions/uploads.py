@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from .settings import (
     ENV,
     GOOGLE_ACL_DATA_BUCKET,
-    GOOGLE_DATA_BUCKET,
+    GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
     GOOGLE_UPLOAD_BUCKET,
     GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
@@ -112,7 +112,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                     storage_client,
                     GOOGLE_UPLOAD_BUCKET,
                     url_bundle.upload_url,
-                    GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET,
+                    GOOGLE_ACL_DATA_BUCKET,
                     url_bundle.target_url,
                 ),
                 url_bundles,
@@ -157,11 +157,9 @@ def ingest_upload(event: dict, context: BackgroundContext):
         # Additionally, make the metadata xlsx a downloadable file
         with saved_failure_status(job, session):
             _, xlsx_blob = _get_bucket_and_blob(
-                storage_client,
-                GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET,
-                job.gcs_xlsx_uri,
+                storage_client, GOOGLE_ACL_DATA_BUCKET, job.gcs_xlsx_uri
             )
-            full_uri = f"gs://{GOOGLE_DATA_BUCKET if ENV == 'prod' else GOOGLE_ACL_DATA_BUCKET}/{xlsx_blob.name}"
+            full_uri = f"gs://{GOOGLE_ACL_DATA_BUCKET}/{xlsx_blob.name}"
             data_format = "Assay Metadata"
             facet_group = f"{job.upload_type}|{data_format}"
             logger.info(f"Saving {full_uri} as a downloadable_file.")
@@ -178,18 +176,25 @@ def ingest_upload(event: dict, context: BackgroundContext):
         job.metadata_patch = metadata_patch
 
         # Making files downloadable by a specified biofx analysis team group
-        # See also: https://github.com/CIMAC-CIDC/cidc-api-gae/blob/fee3b303b397272bbd500289ea64976c5a510b27/cidc_api/models/models.py#L460
-        # # This is a separate permissions system from the main API that applies the expiring IAM role
-        # # `CIDC_biofx` to the `cidc-dfci-biofx-[wes/rna]@ds` emails using a `trial/assay` prefix
-        # # while removing any existing perm for the same prefix
+        # Use grant download permissions cloud function to handle via regular pipeline
         assay_prefix = job.upload_type.split("_")[0]  # 'wes_bam' -> 'wes'
         if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
             analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
-            _gcs_add_prefix_reader_permission(
-                storage_client,
-                analysis_group_email,  # to whom give access to
-                f"{trial_id}/{assay_prefix}",  # to what sub-folder
+            logger.info(
+                f"Assigning download permissions for biofx: {analysis_group_email}"
             )
+
+            kwargs = {
+                "trial_id": trial_id,
+                "upload_type": job.upload_type,
+                "user_email_list": [analysis_group_email],
+            }
+            report = _encode_and_publish(
+                str(kwargs), GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC
+            )
+            # Wait for response from pub/sub
+            if report:
+                report.result()
 
         # Save the upload success and trigger email alert if transaction succeeds
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
@@ -221,18 +226,14 @@ def _gcs_add_prefix_reader_permission(
     storage_client: storage.Client, group_email: str, prefix: str
 ):
     """
-    Adds a conditional policy to GCS bucket (default: GOOGLE_ACL_DATA_BUCKET)
-    that allows `group_email` to read all objects within a `prefix`.
-    GOOGLE_DATA_BUCKET on prod.
+    Gives reader privileges on GCS bucket (default: GOOGLE_ACL_DATA_BUCKET) to `group_email` for all objects within a `prefix`.
     """
     logger.info(
-        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_DATA_BUCKET if ENV == 'prod' else GOOGLE_ACL_DATA_BUCKET} policy"
+        f"Adding {group_email} {GOOGLE_ANALYSIS_GROUP_ROLE} access to GCS {GOOGLE_ACL_DATA_BUCKET} policy"
     )
 
     # get the bucket
-    bucket = storage_client.get_bucket(
-        GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET
-    )
+    bucket = storage_client.get_bucket(GOOGLE_ACL_DATA_BUCKET)
 
     # get v3 policy to use condition in bindings
     policy = bucket.get_iam_policy(requested_policy_version=3)
@@ -247,7 +248,7 @@ def _gcs_add_prefix_reader_permission(
         .isoformat()
     )
 
-    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_DATA_BUCKET if ENV == "prod" else GOOGLE_ACL_DATA_BUCKET}/objects/{cleaned_prefix}/")'
+    prefix_check = f'resource.name.startsWith("projects/_/buckets/{GOOGLE_ACL_DATA_BUCKET}/objects/{cleaned_prefix}/")'
     expiry_check = f'request.time < timestamp("{grant_until_date}T00:00:00Z")'
     group_member = f"group:{group_email}"
 
