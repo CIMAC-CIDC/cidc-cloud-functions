@@ -188,6 +188,7 @@ def ingest_upload(event: dict, context: BackgroundContext):
                 "trial_id": trial_id,
                 "upload_type": job.upload_type,
                 "user_email_list": [analysis_group_email],
+                "is_group": True,
             }
             report = _encode_and_publish(
                 str(kwargs), GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC
