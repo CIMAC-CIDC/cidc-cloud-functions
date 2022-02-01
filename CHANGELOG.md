@@ -9,6 +9,15 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 1 Feb 2022
+
+- `fixed` handling of subcases when applying permissions to multiple sets of files
+- `added` flag for group email for BioFX group
+
+## 31 Jan 2022
+
+- `changed` API dependency for schemas bump for backward-compatible WES analysis
+
 ## 27 Jan 2022
 
 - `removed` non-ACL based download permissions systems for production

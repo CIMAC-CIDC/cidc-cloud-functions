@@ -1,12 +1,12 @@
 from datetime import datetime
 import logging
 import sys
-from typing import List
+from typing import Dict, List, Optional
 
 from .settings import ENV, GOOGLE_WORKER_TOPIC
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
-from cidc_api.models import Permissions, Users
+from cidc_api.models import Permissions
 from cidc_api.shared.gcloud_client import (
     _encode_and_publish,
     get_blob_names,
@@ -20,6 +20,9 @@ from cidc_api.shared.emails import CIDC_MAILING_LIST
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.DEBUG if ENV == "dev" else logging.INFO)
+
+
+BLOBS_PER_CHUNK: int = 100  # how many files to bundle together for permissions handling
 
 
 def grant_download_permissions(event: dict, context: BackgroundContext):
@@ -40,6 +43,8 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
     user_email_list: List[str]
         a comma separated list of user emails to apply the permissions for
         otherwise loaded from the database for all affected users
+    is_group: bool = False
+        whether to use blob.acl.group instead of blob.acl.user
     """
     try:
         # this returns the str, then convert it to a dict
@@ -58,47 +63,65 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
             raise Exception(
                 f"trial_id and upload_type must both be provided, you provided: {data}\nProvide None for cross-trial/assay matching"
             )
-        trial_id, upload_type = data.get("trial_id"), data.get("upload_type")
+        # don't grab the trial_id and upload_type from the data here to keep references clear below
 
         revoke = data.get("revoke", False)
+        is_group = data.get("is_group", False)
 
         with sqlalchemy_session() as session:
             try:
                 if "user_email_list" in data:
-                    user_email_list: List[str] = data["user_email_list"]
+                    user_email_dict: Dict[
+                        Optional[str], Dict[Optional[str], List[str]]
+                    ] = {
+                        data.get("trial_id"): {
+                            data.get("upload_type"): data["user_email_list"]
+                        }
+                    }
 
                 else:
-                    permissions_list: List[
-                        Permissions
-                    ] = Permissions.get_for_trial_type(
-                        trial_id=trial_id, upload_type=upload_type, session=session
+                    user_email_dict: Dict[
+                        str, Dict[str, List[str]]
+                    ] = Permissions.get_user_emails_for_trial_upload(
+                        trial_id=data.get("trial_id"),
+                        upload_type=data.get("upload_type"),
+                        session=session,
                     )
-                    user_list: List[Users] = [
-                        Users.find_by_id(id=perm.granted_to_user, session=session)
-                        for perm in permissions_list
-                    ]
-                    user_email_list: List[str] = [u.email for u in user_list]
 
-                blob_name_list: List = get_blob_names(
-                    trial_id=trial_id, upload_type=upload_type
-                )
-
-                n = 100  # number_of_blobs_per_chunk
-                blob_name_list_chunks = [
-                    blob_name_list[i : i + n] for i in range(0, len(blob_name_list), n)
-                ]
-
-                for chunk in blob_name_list_chunks:
-                    kwargs = {
-                        "_fn": "permissions_worker",
-                        "user_email_list": user_email_list,
-                        "blob_name_list": chunk,
-                        "revoke": revoke,
+                blob_name_dict: Dict[str, Dict[str, List[str]]] = {
+                    trial: {
+                        upload: get_blob_names(
+                            trial_id=trial, upload_type=upload, session=session
+                        )
+                        for upload in upload_dict.keys()
                     }
-                    report = _encode_and_publish(str(kwargs), GOOGLE_WORKER_TOPIC)
-                    # Wait for response from pub/sub
-                    if report:
-                        report.result()
+                    for trial, upload_dict in user_email_dict.items()
+                }
+
+                for trial_id, upload_dict in blob_name_dict.items():
+                    for upload_type, blob_name_list in upload_dict.items():
+                        user_email_list = user_email_dict[trial_id][upload_type]
+
+                        blob_name_list_chunks = [
+                            blob_name_list[i : i + BLOBS_PER_CHUNK]
+                            for i in range(0, len(blob_name_list), BLOBS_PER_CHUNK)
+                        ]
+
+                        for chunk in blob_name_list_chunks:
+                            kwargs = {
+                                "_fn": "permissions_worker",
+                                "user_email_list": user_email_list,
+                                "blob_name_list": chunk,
+                                "revoke": revoke,
+                                "is_group": is_group,
+                            }
+
+                            report = _encode_and_publish(
+                                str(kwargs), GOOGLE_WORKER_TOPIC
+                            )
+                            # Wait for response from pub/sub
+                            if report:
+                                report.result()
 
             except Exception as e:
                 logger.error(f"Error: {e}", exc_info=True)
@@ -114,6 +137,7 @@ def permissions_worker(
     user_email_list: List[str] = [],
     blob_name_list: List[str] = [],
     revoke: bool = False,
+    is_group: bool = False,
 ):
     if not user_email_list or not blob_name_list:
         data = {"user_email_list": user_email_list, "blob_name_list": blob_name_list}
@@ -124,11 +148,15 @@ def permissions_worker(
     try:
         if revoke:
             revoke_download_access_from_blob_names(
-                user_email_list=user_email_list, blob_name_list=blob_name_list
+                user_email_list=user_email_list,
+                blob_name_list=blob_name_list,
+                is_group=is_group,
             )
         else:
             grant_download_access_to_blob_names(
-                user_email_list=user_email_list, blob_name_list=blob_name_list
+                user_email_list=user_email_list,
+                blob_name_list=blob_name_list,
+                is_group=is_group,
             )
     except Exception as e:
         data = {"user_email_list": user_email_list, "blob_name_list": blob_name_list}

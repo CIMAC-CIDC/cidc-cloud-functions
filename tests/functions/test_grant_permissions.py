@@ -2,28 +2,33 @@ import functions.grant_permissions
 from functions.grant_permissions import grant_download_permissions, permissions_worker
 from functions.settings import GOOGLE_WORKER_TOPIC
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 
 def test_grant_download_permissions(monkeypatch):
-    # this doesn't actually matter as we get the Users right after
-    mock_permissions_list = MagicMock()
-    mock_permissions_list.return_value = [MagicMock(), MagicMock()]
+
+    user_email_list = ["foo@bar.com", "user@test.com", "cidc@foo.bar"]
+    full_email_dict = {
+        None: {"bar": [user_email_list[0]]},
+        "foo": {None: [user_email_list[1]], "bar": [user_email_list[2]]},
+        "biz": {"wes": [user_email_list[2]]},
+    }
+
+    def mock_get_user_emails(trial_id: str, upload_type: str, session):
+        return {
+            trial: {
+                upload: users
+                for upload, users in upload_dict.items()
+                if upload is None or upload == upload_type
+            }
+            for trial, upload_dict in full_email_dict.items()
+            if trial is None or trial == trial_id
+        }
+
     monkeypatch.setattr(
         functions.grant_permissions.Permissions,
-        "get_for_trial_type",
-        mock_permissions_list,
-    )
-
-    user_list = [MagicMock(), MagicMock()]
-    user_email_list = ["foo@bar.com", "user@test.com"]
-    for user, email in zip(user_list, user_email_list):
-        user.email = email
-
-    monkeypatch.setattr(
-        functions.grant_permissions.Users,
-        "find_by_id",
-        lambda id, session: user_list.pop(),
+        "get_user_emails_for_trial_upload",
+        mock_get_user_emails,
     )
 
     mock_blob_name_list = MagicMock()
@@ -51,7 +56,9 @@ def test_grant_download_permissions(monkeypatch):
 
     # incomplete/incorrect matching does nothing at all, just logging
     mock_extract_data = MagicMock()
-    mock_extract_data.return_value = str({"trial_id": "foo", "user_email_list": "baz"})
+    mock_extract_data.return_value = str(
+        {"trial_id": "foo", "user_email_list": ["baz"]}
+    )
     monkeypatch.setattr(
         functions.grant_permissions, "extract_pubsub_data", mock_extract_data
     )
@@ -67,35 +74,102 @@ def test_grant_download_permissions(monkeypatch):
         functions.grant_permissions, "extract_pubsub_data", mock_extract_data
     )
     grant_download_permissions({}, None)
-    mock_permissions_list.assert_called_once()  # not once_with because of unbound session
-    _, kwargs = mock_permissions_list.call_args_list[0]
-    assert kwargs.get("trial_id") == "foo"
-    assert kwargs.get("upload_type") == "bar"
-    mock_blob_name_list.assert_called_once_with(trial_id="foo", upload_type="bar")
+    assert mock_blob_name_list.call_count == 3
+    # (None, bar), (foo, None), (foo, bar) all match
+    # Note no (biz, wes) as that doesn't match
+    for _, kwargs in mock_blob_name_list.call_args_list:
+        assert kwargs["trial_id"] in (None, "foo")
+        assert kwargs["upload_type"] in (None, "bar")
 
-    assert mock_encode_and_publish.call_count == 2
-    call1, call2 = mock_encode_and_publish.call_args_list
-    assert call1[0][1] == GOOGLE_WORKER_TOPIC and call2[0][1] == GOOGLE_WORKER_TOPIC
-
-    assert eval(call1[0][0]) == {
-        "_fn": "permissions_worker",
-        "user_email_list": user_email_list[::-1],  # pop above inverts
-        "blob_name_list": mock_blob_name_list.return_value[:100],
-        "revoke": False,
-    }
-    assert eval(call2[0][0]) == {
-        "_fn": "permissions_worker",
-        "user_email_list": user_email_list[::-1],  # pop above inverts
-        "blob_name_list": mock_blob_name_list.return_value[100:],
-        "revoke": False,
-    }
+    assert mock_encode_and_publish.call_count == 6
+    assert mock_encode_and_publish.call_args_list == [
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list[:1],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
+                    "revoke": False,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list[:1],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
+                    "revoke": False,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list[1:2],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
+                    "revoke": False,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list[1:2],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
+                    "revoke": False,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list[-1:],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
+                    "revoke": False,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list[-1:],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
+                    "revoke": False,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+    ]
 
     # with revoke: True, passing revoke: True
     # passing user_email_list doesn't get the Permissions or users
-    mock_find_user = MagicMock()
-    monkeypatch.setattr(functions.grant_permissions.Users, "find_by_id", mock_find_user)
     mock_encode_and_publish.reset_mock()  # we're checking this
-    mock_permissions_list.reset_mock()  # shouldn't be called
+    mock_blob_name_list.reset_mock()
+
+    def no_call(self):
+        assert False
+
+    monkeypatch.setattr(
+        functions.grant_permissions.Permissions,
+        "get_user_emails_for_trial_upload",
+        lambda *args: no_call(),
+    )
 
     mock_extract_data.return_value = str(
         {
@@ -107,25 +181,38 @@ def test_grant_download_permissions(monkeypatch):
     )
     grant_download_permissions({}, None)
 
-    mock_permissions_list.assert_not_called()
-    mock_find_user.assert_not_called()
+    assert mock_blob_name_list.call_count == 1
+    _, kwargs = mock_blob_name_list.call_args
+    assert kwargs["trial_id"] == "foo"
+    assert kwargs["upload_type"] == "bar"
 
     assert mock_encode_and_publish.call_count == 2
-    call1, call2 = mock_encode_and_publish.call_args_list
-    assert call1[0][1] == GOOGLE_WORKER_TOPIC and call2[0][1] == GOOGLE_WORKER_TOPIC
-
-    assert eval(call1[0][0]) == {
-        "_fn": "permissions_worker",
-        "user_email_list": user_email_list,
-        "blob_name_list": mock_blob_name_list.return_value[:100],
-        "revoke": True,
-    }
-    assert eval(call2[0][0]) == {
-        "_fn": "permissions_worker",
-        "user_email_list": user_email_list,
-        "blob_name_list": mock_blob_name_list.return_value[100:],
-        "revoke": True,
-    }
+    assert mock_encode_and_publish.call_args_list == [
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list,
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
+                    "revoke": True,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+        call(
+            str(
+                {
+                    "_fn": "permissions_worker",
+                    "user_email_list": user_email_list,
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
+                    "revoke": True,
+                    "is_group": False,
+                }
+            ),
+            GOOGLE_WORKER_TOPIC,
+        ),
+    ]
 
 
 def test_permissions_worker(monkeypatch):
@@ -147,18 +234,24 @@ def test_permissions_worker(monkeypatch):
         mock_revoke,
     )
     permissions_worker(
-        user_email_list=user_email_list, blob_name_list=blob_name_list, revoke=False
+        user_email_list=user_email_list,
+        blob_name_list=blob_name_list,
+        revoke=False,
+        is_group=False,
     )
     mock_grant.assert_called_with(
-        user_email_list=user_email_list, blob_name_list=blob_name_list
+        user_email_list=user_email_list, blob_name_list=blob_name_list, is_group=False
     )
     mock_revoke.assert_not_called()
 
     mock_grant.reset_mock()
     permissions_worker(
-        user_email_list=user_email_list, blob_name_list=blob_name_list, revoke=True
+        user_email_list=user_email_list,
+        blob_name_list=blob_name_list,
+        revoke=True,
+        is_group=False,
     )
     mock_grant.assert_not_called()
     mock_revoke.assert_called_with(
-        user_email_list=user_email_list, blob_name_list=blob_name_list
+        user_email_list=user_email_list, blob_name_list=blob_name_list, is_group=False
     )

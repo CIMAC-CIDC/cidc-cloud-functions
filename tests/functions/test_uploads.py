@@ -178,6 +178,7 @@ def test_ingest_upload(caplog, monkeypatch):
                     "trial_id": TRIAL_ID,
                     "upload_type": job.upload_type,
                     "user_email_list": ["analysis-group@email"],
+                    "is_group": True,
                 }
             ),
             GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
