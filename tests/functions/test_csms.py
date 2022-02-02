@@ -18,15 +18,15 @@ from cidc_api.shared.emails import CIDC_MAILING_LIST
 def test_update_cidc_from_csms_matching_some(monkeypatch):
     manifest = {
         "manifest_id": "bar",
-        "samples": [{"protocol_identifier": "foo",}],  # len != 0
+        "samples": [{"protocol_identifier": "foo"}],  # len != 0
     }
     manifest2 = {
         "manifest_id": "baz",
-        "samples": [{"protocol_identifier": "foobar",}],  # len != 0
+        "samples": [{"protocol_identifier": "foobar"}],  # len != 0
     }
     manifest3 = {
         "manifest_id": "biz",
-        "samples": [{"protocol_identifier": "foo",}],  # len != 0
+        "samples": [{"protocol_identifier": "foo"}],  # len != 0
     }
 
     mock_api_get = MagicMock()
@@ -73,20 +73,18 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
             assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
-    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
-        "Summary of Update from CSMS:"
-    )
+    assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
     assert (
         f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}"
-        not in args[2]
+        not in kwargs["html_content"]
     )
     assert (
         f"New {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')} with {len(manifest3.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
 
     reset()
@@ -106,20 +104,18 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
-    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
-        "Summary of Update from CSMS:"
-    )
+    assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
     assert (
         f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')}"
-        not in args[2]
+        not in kwargs["html_content"]
     )
     assert (
         f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"New {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')}"
-        not in args[2]
+        not in kwargs["html_content"]
     )
 
     reset()
@@ -141,20 +137,18 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
-    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
-        "Summary of Update from CSMS:"
-    )
+    assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
     assert (
         f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}"
-        not in args[2]
+        not in kwargs["html_content"]
     )
     assert (
         f"New {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')}"
-        not in args[2]
+        not in kwargs["html_content"]
     )
 
     reset()
@@ -185,24 +179,22 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
 
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
-    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
-        "Summary of Update from CSMS:"
-    )
+    assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
     assert (
         "To make changes, trial_id and manifest_id matching must both be provided in the event data."
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"Would add new {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"Would add new {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"Would add new {manifest3.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest3.get('manifest_id')} with {len(manifest3.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
 
     # if bad-key but correctly formatted event data, error directly
@@ -250,23 +242,23 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
             "email",
             "logger",
         ][n]
-    args, _ = mock_email.call_args_list[0]
+    args, kwargs = mock_email.call_args_list[0]
     assert (
         f"Problem with {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')}"
-        in args[2]
+        in kwargs["html_content"]
     )
-    assert "Error from insert_manifest_into_blob" in args[2]
+    assert "Error from insert_manifest_into_blob" in kwargs["html_content"]
 
 
 @with_app_context
 def test_update_cidc_from_csms_matching_all(monkeypatch):
     manifest = {
         "manifest_id": "bar",
-        "samples": [{"protocol_identifier": "foo",}],  # len != 0
+        "samples": [{"protocol_identifier": "foo"}],  # len != 0
     }
     manifest2 = {
         "manifest_id": "baz",
-        "samples": [{"protocol_identifier": "foo",}],  # len != 0
+        "samples": [{"protocol_identifier": "foo"}],  # len != 0
     }
 
     mock_api_get = MagicMock()
@@ -285,12 +277,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     match_all_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "*"}))
 
     def reset():
-        for mock in [
-            mock_api_get,
-            mock_insert_json,
-            mock_insert_blob,
-            mock_email,
-        ]:
+        for mock in [mock_api_get, mock_insert_json, mock_insert_blob, mock_email]:
             mock.reset_mock()
 
     # if no changes, nothing happens
@@ -305,11 +292,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
 
-    for mock in [
-        mock_insert_json,
-        mock_insert_blob,
-        mock_email,
-    ]:
+    for mock in [mock_insert_json, mock_insert_blob, mock_email]:
         mock.assert_not_called()
 
     # if throws NewManifestError, calls insert functions with manifest itself
@@ -326,16 +309,14 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
             assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
-    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
-        "Summary of Update from CSMS:"
-    )
+    assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
     assert (
         f"New {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')} with {len(manifest.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"New {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')} with {len(manifest2.get('samples', []))} samples"
-        in args[2]
+        in kwargs["html_content"]
     )
 
     # if throws any other error, does nothing but email
@@ -344,20 +325,15 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     update_cidc_from_csms(match_all_event, None)
     assert all("*" not in args for args, _ in mock_api_get.call_args_list)
     mock_email.assert_called_once()
-    args, _ = mock_email.call_args_list[0]
-    assert args[0] == CIDC_MAILING_LIST and args[1].startswith(
-        "Summary of Update from CSMS:"
-    )
+    args, kwargs = mock_email.call_args_list[0]
+    assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
     assert (
         f"Problem with {manifest.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest.get('manifest_id')}: {Exception('foo')!r}"
-        in args[2]
+        in kwargs["html_content"]
     )
     assert (
         f"Problem with {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}: {Exception('foo')!r}"
-        in args[2]
+        in kwargs["html_content"]
     )
-    for mock in [
-        mock_insert_json,
-        mock_insert_blob,
-    ]:
+    for mock in [mock_insert_json, mock_insert_blob]:
         mock.assert_not_called()
