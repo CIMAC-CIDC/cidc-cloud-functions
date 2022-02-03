@@ -18,8 +18,8 @@ def disable_inactive_users(*args):
         if len(disabled):
             send_email(
                 CIDC_MAILING_LIST,
-                f"({ENV}) Disabled inactivate users: {datetime.now()}",
-                f"Diabled following user on {ENV}s: {disabled}",
+                f"({ENV}) Disabled inactivate user(s): {datetime.now()}",
+                f"Disabled following inactive user(s) on {ENV}s: {disabled}",
             )
 
 
