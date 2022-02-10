@@ -127,8 +127,8 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                 logger.error(f"Error: {e}", exc_info=True)
                 send_email(
                     CIDC_MAILING_LIST,
-                    f"Error granting permissions: {datetime.now()}",
-                    f"For {data}\r\nSee logs for more info\r\n{e}",
+                    f"[DEV ALERT]({ENV})Error granting permissions: {datetime.now()}",
+                    html_content=f"See logs for more info<br />{e}<br />For {data}",
                 )
                 raise e
 
@@ -163,7 +163,7 @@ def permissions_worker(
         logger.error(f"Error on {data}:\nError:{e}", exc_info=True)
         send_email(
             CIDC_MAILING_LIST,
-            f"Error granting permissions: {datetime.now()}",
-            f"For {data}\r\nSee logs for more info\r\n{e}",
+            f"[DEV ALERT]({ENV}) Error granting permissions: {datetime.now()}",
+            html_content=f"See logs for more info.<br />{e}<br /> For: {data}",
         )
         raise e
