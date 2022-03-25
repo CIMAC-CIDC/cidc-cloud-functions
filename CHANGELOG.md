@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 25 Mar 2022
+
+- `changed` API (schemas) version bump for regex version peg to prevent errors
+
 ## 1 Feb 2022
 
 - `fixed` handling of subcases when applying permissions to multiple sets of files
