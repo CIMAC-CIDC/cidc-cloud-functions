@@ -84,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           project_id: ${{ github.ref == 'refs/heads/production' && 'cidc-dfci' || 'cidc-dfci-staging' }}
           service_account_key: ${{ github.ref == 'refs/heads/production' && secrets.GCP_SA_KEY_PROD || secrets.GCP_SA_KEY_STAGING }}
