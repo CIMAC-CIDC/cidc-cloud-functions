@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 6 Apr 2002
+
+- `added` werkzeug version peg for flask-sqlalchemy error in CFn deploy
+
 ## 25 Mar 2022
 
 - `changed` API (schemas) version bump for regex version peg to prevent errors
