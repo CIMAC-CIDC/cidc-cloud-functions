@@ -9,7 +9,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
-## 21 Apr 2002
+## 28 Apr 2022
+
+- `changed` pytest, black, click, api version bumps
+
+## 21 Apr 2022
 
 - `changed` API (schemas) version bump for adding collection events to wes matching
 
