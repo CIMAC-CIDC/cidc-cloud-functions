@@ -26,7 +26,7 @@ def disable_inactive_users(*args):
 def refresh_download_permissions(*args):
     """
     Extend the expiry date for GCS download permissions belonging to users
-    who accessed the system in the last 2 (or so) days. If we don't do this, 
+    who accessed the system in the last 2 (or so) days. If we don't do this,
     users whose accounts are still active might lose GCS download permission prematurely.
     """
     active_today = lambda q: q.filter(
