@@ -61,7 +61,7 @@ def extract_pubsub_data(event: dict):
 class BackgroundContext(NamedTuple):
     """
     Model of the context object passed to a background cloud function.
-    
+
     Based on: https://cloud.google.com/functions/docs/writing/background#function_parameters
     """
 
@@ -83,7 +83,7 @@ def get_blob_as_stream(
 
 def _download_blob_bytes(object_name: str) -> bytes:
     """
-    Download a blob as bytes from GCS. Throws a FileNotFound exception 
+    Download a blob as bytes from GCS. Throws a FileNotFound exception
     if the object doesn't exist.
     """
     storage_client = storage.Client()

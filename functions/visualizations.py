@@ -77,7 +77,7 @@ def _get_metadata_df(trial_id: str) -> pd.DataFrame:
 
 
 def _get_transforms() -> dict:
-    """ 
+    """
     Get a list of functions taking an open file and
     that file's downloadable file record as arguments, returning
     a JSON blob that the frontend will use for visualization.
@@ -265,7 +265,7 @@ class _ClustergrammerTransform:
         self, file_record: DownloadableFiles, metadata_df: pd.DataFrame
     ) -> Optional[dict]:
         """
-        Prepare the data file for visualization in clustergrammer. 
+        Prepare the data file for visualization in clustergrammer.
         NOTE: `metadata_df` should contain data from the participants and samples CSVs
         for this file's trial, joined on CIMAC ID and indexed on CIMAC ID.
         """
