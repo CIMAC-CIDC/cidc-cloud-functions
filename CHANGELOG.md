@@ -9,6 +9,22 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 28 Apr 2022
+
+- `changed` pytest, black, click, api version bumps
+
+## 21 Apr 2022
+
+- `changed` API (schemas) version bump for adding collection events to wes matching
+
+## 6 Apr 2002
+
+- `added` version pegs for flask-sqlalchemy error in CFn deploy
+
+## 5 Apr 2022
+
+- `changed` API (schemas) version bump for wes matching additions
+
 ## 25 Mar 2022
 
 - `changed` API (schemas) version bump for regex version peg to prevent errors
