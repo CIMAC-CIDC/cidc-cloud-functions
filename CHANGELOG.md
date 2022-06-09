@@ -9,6 +9,18 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 9 Jun 2022
+
+- `changed` bump API for schemas bump for added Microbiome support
+
+## 8 Jun 2022
+
+- `changed` bump API for schemas bump and counting for added ctDNA support
+
+## 20 May 2022
+
+- `changed` bump API for schemas bump for new ctDNA option for manifest assay_type
+
 ## 28 Apr 2022
 
 - `changed` pytest, black, click, api version bumps
