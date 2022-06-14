@@ -13,6 +13,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 
 - `changed` bump API for schemas bump for shipping manifest requirement relaxing
 
+## 9 Jun 2022
+
+- `changed` bump API for schemas bump for added Microbiome support
+
 ## 8 Jun 2022
 
 - `changed` bump API for schemas bump and counting for added ctDNA support
