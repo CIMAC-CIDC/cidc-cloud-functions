@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 8 Jul 2022
+
+- `changed` bump API for schemas bump for WES analysis pipeline v3
+
 ## 21 Jun 2022
 
 - `changed` bump API for schemas bump for new wes bait set
