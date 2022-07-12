@@ -122,6 +122,24 @@ def test_ingest_upload(caplog, monkeypatch):
     monkeypatch.setattr(DownloadableFiles, "create_from_blob", _save_blob_file)
 
     _merge_metadata = MagicMock("_merge_metadata")
+    trial = MagicMock()
+    trial.metadata_json = {
+        **job.metadata_patch,
+        "participants": [
+            {
+                "cimac_participant_id": "CIMAC-mock-pa-id",
+                "samples": [
+                    {
+                        "collection_event_name": "Baseline",
+                        "cimac_id": "CIMAC-mock-sa-id",
+                        "processed_sample_derivative": "Tumor DNA",
+                    }
+                ],
+            }
+        ],
+    }
+
+    _merge_metadata.return_value = trial
     monkeypatch.setattr(TrialMetadata, "patch_assays", _merge_metadata)
 
     publish_artifact_upload = MagicMock("publish_artifact_upload")
