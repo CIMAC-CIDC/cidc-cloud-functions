@@ -9,6 +9,14 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 2 Aug 2022
+
+- `added` pinned flask version to fix error
+
+## 2 Aug 2022
+
+- `changed` bump API for schemas bump for hande req relaxation
+
 ## 27 Jul 2022
 
 - `changed` bump API for schemas bump for clinical data participant counts fix
