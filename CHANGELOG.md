@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 9 Aug 2022
+
+- `added` bump API for schemas bump for hande manifest req relaxation
+
 ## 2 Aug 2022
 
 - `added` pinned flask version to fix error
