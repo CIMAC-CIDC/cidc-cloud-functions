@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 11 Aug 2022
+
+- `changed` bump API for clinical data NOT included in cross-assay permissions
+
 ## 9 Aug 2022
 
 - `added` bump API for schemas bump for hande manifest req relaxation
