@@ -90,5 +90,5 @@ def test_derive_files_from_upload(monkeypatch):
     upload_to_data_bucket.assert_called()
     create_from_blob.assert_called()
     session.commit.assert_called()
-    assert blob in create_from_blob.call_args[0]
+    assert blob in create_from_blob.call_args[1].values()
     assert downloadable_file.analysis_friendly is True
