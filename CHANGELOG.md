@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 23 Aug 2022
+
+- `fixed` bug putting wrong upload_type on derived files
+
 ## 17 Aug 2022
 
 - `changed` bump API for microbiome metadata template changes and new shipping lab
