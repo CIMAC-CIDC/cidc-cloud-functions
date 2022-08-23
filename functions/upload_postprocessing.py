@@ -83,11 +83,11 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
 
         # Save to database
         df_record = DownloadableFiles.create_from_blob(
-            trial_record.trial_id,
-            artifact.file_type,
-            artifact.data_format,
-            facet_group,
-            blob,
+            trial_id=trial_record.trial_id,
+            upload_type=upload_type,
+            data_format=artifact.data_format,
+            facet_group=facet_group,
+            blob=blob,
             session=session,
             alert_artifact_upload=True,
         )
