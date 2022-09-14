@@ -9,6 +9,15 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 15 Sep 2022
+
+- `changed` bump API for removal of relational tables
+- `remove` function calls to removed functions in API
+
+## 14 Sep 2022
+
+- `changed` bump API for new docs / schemas tweaks
+
 ## 23 Aug 2022
 
 - `fixed` bug putting wrong upload_type on derived files
