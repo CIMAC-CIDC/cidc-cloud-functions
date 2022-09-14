@@ -11,7 +11,6 @@ from cidc_api.csms import get_with_paging
 from cidc_api.models.templates.csms_api import (
     _get_and_check,
     detect_manifest_changes,
-    insert_manifest_from_json,
     insert_manifest_into_blob,
     NewManifestError,
 )
@@ -112,9 +111,8 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
             try:
                 # throws an error instead the catch if any change to critical fields, so we do need catch those too
                 try:
-                    # returns `records`: list of model instances, but we're only dealing with new manifests
-                    # # using a different function, so we don't need to catch a change on any other manifest
-                    _, changes = detect_manifest_changes(
+                    # we're only dealing with new manifests, so we don't need to catch a change on any other manifest
+                    changes = detect_manifest_changes(
                         manifest, uploader_email=INTERNAL_USER_EMAIL, session=session
                     )
                     # with updates within API's detect_manifest_changes() itself, we can capture
@@ -122,14 +120,6 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
 
                 except NewManifestError:
                     if data:
-                        # relational hook
-                        insert_manifest_from_json(
-                            manifest,
-                            uploader_email=INTERNAL_USER_EMAIL,
-                            dry_run=dry_run,
-                            session=session,
-                        )
-
                         # schemas JSON blob hook
                         insert_manifest_into_blob(
                             manifest,
@@ -153,7 +143,7 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                         )
 
                 else:
-                    # TODO in the future, should actually store returned records above and call insert_record_batch(records)
+                    # TODO in the future, should actually handle chanes records above and handle
                     logger.info(
                         f"Changes found for {trial_id} manifest {manifest.get('manifest_id')}: {changes}"
                     )
