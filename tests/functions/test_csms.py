@@ -10,7 +10,7 @@ functions.csms.INTERNAL_USER_EMAIL = "user@email.com"
 
 from functions.csms import INTERNAL_USER_EMAIL, update_cidc_from_csms
 
-from cidc_api.models.templates.csms_api import NewManifestError
+from cidc_api.models.csms_api import NewManifestError
 from cidc_api.shared.emails import CIDC_MAILING_LIST
 
 
@@ -33,8 +33,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     mock_api_get.return_value = [manifest, manifest2, manifest3]
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
 
-    mock_insert_json, mock_insert_blob = MagicMock(), MagicMock()
-    monkeypatch.setattr(functions.csms, "insert_manifest_from_json", mock_insert_json)
+    mock_insert_blob = MagicMock()
     monkeypatch.setattr(functions.csms, "insert_manifest_into_blob", mock_insert_blob)
     mock_email = MagicMock()
     monkeypatch.setattr(functions.csms, "send_email", mock_email)
@@ -49,7 +48,6 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     def reset():
         for mock in [
             mock_api_get,
-            mock_insert_json,
             mock_insert_blob,
             mock_email,
             mock_logger,
@@ -64,13 +62,12 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     assert all(
         ["manifest_id" not in args[0] for args, _ in mock_api_get.call_args_list]
     )
-    for mock in [mock_insert_blob, mock_insert_json]:
-        assert mock.call_count == 2
-        for i in range(2):
-            args, kwargs = mock.call_args_list[i]
-            assert (manifest, manifest3)[i] in args
-            assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
-            assert "session" in kwargs
+    assert mock_insert_blob.call_count == 2
+    for i in range(2):
+        args, kwargs = mock_insert_blob.call_args_list[i]
+        assert (manifest, manifest3)[i] in args
+        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
+        assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
     assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
@@ -96,12 +93,11 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     assert all(
         ["manifest_id=baz" in args[0] for args, _ in mock_api_get.call_args_list]
     )
-    for mock in [mock_insert_blob, mock_insert_json]:
-        assert mock.call_count == 1
-        args, kwargs = mock.call_args_list[0]
-        assert manifest2 in args
-        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
-        assert "session" in kwargs
+    assert mock_insert_blob.call_count == 1
+    args, kwargs = mock_insert_blob.call_args_list[0]
+    assert manifest2 in args
+    assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
+    assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
     assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
@@ -129,12 +125,11 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     assert all(
         ["manifest_id=bar" in args[0] for args, _ in mock_api_get.call_args_list]
     )
-    for mock in [mock_insert_blob, mock_insert_json]:
-        assert mock.call_count == 1
-        args, kwargs = mock.call_args_list[0]
-        assert manifest in args
-        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
-        assert "session" in kwargs
+    assert mock_insert_blob.call_count == 1
+    args, kwargs = mock_insert_blob.call_args_list[0]
+    assert manifest in args
+    assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
+    assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
     assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
@@ -160,7 +155,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
         ["manifest_id=foo" in args[0] for args, _ in mock_api_get.call_args_list]
     )
     update_cidc_from_csms(match_trial_event, None)
-    for mock in [mock_insert_blob, mock_insert_json, mock_email]:
+    for mock in [mock_insert_blob, mock_email]:
         assert mock.call_count == 0
 
     reset()
@@ -171,8 +166,7 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     assert all(
         ["manifest_id" not in args[0] for args, _ in mock_api_get.call_args_list]
     )
-    for mock in [mock_insert_blob, mock_insert_json]:
-        assert mock.call_count == 0
+    assert mock_insert_blob.call_count == 0
     mock_logger.info.assert_called()
     args, _ = mock_logger.info.call_args_list[0]
     assert "Dry-run call to update CIDC from CSMS." in args[0]
@@ -229,7 +223,6 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     for n, mock in enumerate(
         [
             mock_api_get,
-            mock_insert_json,
             mock_insert_blob,
             mock_email,
             mock_logger.error,
@@ -237,7 +230,6 @@ def test_update_cidc_from_csms_matching_some(monkeypatch):
     ):
         assert mock.call_count >= 1, [
             "api",
-            "insert_json",
             "insert_blob",
             "email",
             "logger",
@@ -265,8 +257,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     mock_api_get.return_value = [manifest, manifest2]
     monkeypatch.setattr(functions.csms, "get_with_paging", mock_api_get)
 
-    mock_insert_json, mock_insert_blob = MagicMock(), MagicMock()
-    monkeypatch.setattr(functions.csms, "insert_manifest_from_json", mock_insert_json)
+    mock_insert_blob = MagicMock()
     monkeypatch.setattr(functions.csms, "insert_manifest_into_blob", mock_insert_blob)
     mock_email = MagicMock()
     monkeypatch.setattr(functions.csms, "send_email", mock_email)
@@ -277,7 +268,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     match_all_event = make_pubsub_event(str({"trial_id": "*", "manifest_id": "*"}))
 
     def reset():
-        for mock in [mock_api_get, mock_insert_json, mock_insert_blob, mock_email]:
+        for mock in [mock_api_get, mock_insert_blob, mock_email]:
             mock.reset_mock()
 
     # if no changes, nothing happens
@@ -292,7 +283,7 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
         assert "session" in kwargs
 
-    for mock in [mock_insert_json, mock_insert_blob, mock_email]:
+    for mock in [mock_insert_blob, mock_email]:
         mock.assert_not_called()
 
     # if throws NewManifestError, calls insert functions with manifest itself
@@ -300,13 +291,12 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
     mock_detect.side_effect = NewManifestError()
     update_cidc_from_csms(match_all_event, None)
     assert all("*" not in args for args, _ in mock_api_get.call_args_list)
-    for mock in [mock_insert_blob, mock_insert_json]:
-        assert mock.call_count == 2
-        for i in range(2):
-            args, kwargs = mock.call_args_list[i]
-            assert (manifest, manifest2)[i] in args
-            assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
-            assert "session" in kwargs
+    assert mock_insert_blob.call_count == 2
+    for i in range(2):
+        args, kwargs = mock_insert_blob.call_args_list[i]
+        assert (manifest, manifest2)[i] in args
+        assert kwargs.get("uploader_email") == INTERNAL_USER_EMAIL
+        assert "session" in kwargs
     mock_email.assert_called_once()
     args, kwargs = mock_email.call_args_list[0]
     assert args[0] == CIDC_MAILING_LIST and "CSMS" in args[1]
@@ -335,5 +325,4 @@ def test_update_cidc_from_csms_matching_all(monkeypatch):
         f"Problem with {manifest2.get('samples', [{}])[0].get('protocol_identifier')} manifest {manifest2.get('manifest_id')}: {Exception('foo')!r}"
         in kwargs["html_content"]
     )
-    for mock in [mock_insert_json, mock_insert_blob]:
-        mock.assert_not_called()
+    mock_insert_blob.assert_not_called()
