@@ -8,7 +8,7 @@ from .settings import ENV, INTERNAL_USER_EMAIL
 from .util import BackgroundContext, extract_pubsub_data, sqlalchemy_session
 
 from cidc_api.csms import get_with_paging
-from cidc_api.models.templates.csms_api import (
+from cidc_api.models.csms_api import (
     _get_and_check,
     detect_manifest_changes,
     insert_manifest_into_blob,
