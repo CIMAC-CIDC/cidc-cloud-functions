@@ -10,7 +10,7 @@ functions.csms.INTERNAL_USER_EMAIL = "user@email.com"
 
 from functions.csms import INTERNAL_USER_EMAIL, update_cidc_from_csms
 
-from cidc_api.models.templates.csms_api import NewManifestError
+from cidc_api.models.csms_api import NewManifestError
 from cidc_api.shared.emails import CIDC_MAILING_LIST
 
 
