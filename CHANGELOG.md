@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 16 Sep 2022
+
+- `changed` bump API for encrypting participant IDs
+
 ## 15 Sep 2022
 
 - `changed` bump API for removal of relational tables
