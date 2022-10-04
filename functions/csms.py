@@ -56,7 +56,8 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 )
             dry_run = False
 
-    email_msg = []
+    email_msg: str = []
+    email_error: bool = False
 
     if dry_run:
         if "data" in event:
@@ -155,11 +156,14 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
                 email_msg.append(
                     f"Problem with {trial_id} manifest {manifest.get('manifest_id')}: {e!r}"
                 )
+                email_error = True
 
         if email_msg:
             logger.info(f"Email: {email_msg}")
             send_email(
                 CIDC_MAILING_LIST,
-                f"[DEV ALERT]({ENV}) Error updating from CSMS: {datetime.now()}",
+                f"[DEV ALERT]({ENV})"
+                + ("Error" if email_error else "Success")
+                + f" updating from CSMS: {datetime.now()}",
                 html_content="<br />".join(email_msg),
             )
