@@ -162,6 +162,8 @@ def update_cidc_from_csms(event: dict, context: BackgroundContext):
             logger.info(f"Email: {email_msg}")
             send_email(
                 CIDC_MAILING_LIST,
-                f"[DEV ALERT]({ENV})" + ("Error" if email_error else "Success") + f" updating from CSMS: {datetime.now()}",
+                f"[DEV ALERT]({ENV})"
+                + ("Error" if email_error else "Success")
+                + f" updating from CSMS: {datetime.now()}",
                 html_content="<br />".join(email_msg),
             )
