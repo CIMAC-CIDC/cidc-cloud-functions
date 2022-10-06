@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 06 Oct 2022
+
+- `changed` API bump to fix bug in permissions for new uploads
+
 ## 01 Oct 2022
 
 - `changed` API bump for new PACT User role
