@@ -9,6 +9,14 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 12 Oct 2022
+
+- `changed` API bump for switching staging uploader role to temp replacement
+
+## 10 Oct 2022
+
+- `changed` API bump for MIBI support
+
 ## 06 Oct 2022
 
 - `changed` API bump to fix bug in permissions for new uploads
