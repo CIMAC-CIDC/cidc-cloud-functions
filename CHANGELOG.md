@@ -11,7 +11,7 @@ This Changelog tracks changes to this project. The notes below include a summary
 
 ## 14 Oct 2022
 
-- `changed` API bump for protobuf versioning
+- `changed` API bump for protobuf versioning and functionality fix
 
 ## 13 Oct 2022
 
