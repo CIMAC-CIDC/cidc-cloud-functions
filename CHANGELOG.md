@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 14 Oct 2022
+
+- `changed` API bump for protobuf versioning
+
 ## 13 Oct 2022
 
 - `changed` API bump for bigquery permission changes
