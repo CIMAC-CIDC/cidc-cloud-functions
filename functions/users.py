@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 from cidc_api.models import Users, Permissions
-from cidc_api.shared.gcloud_client import send_email
+from cidc_api.shared.gcloud_client import send_email, grant_bigquery_access
 from cidc_api.shared.emails import CIDC_MAILING_LIST
 
 from .settings import ENV
