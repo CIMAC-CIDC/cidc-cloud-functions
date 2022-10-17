@@ -12,6 +12,7 @@ This Changelog tracks changes to this project. The notes below include a summary
 ## 17 Oct 2022
 
 - `changed` API version update and fix of function name
+- `changed` API version bump for project reference fix
 
 ## 14 Oct 2022
 
