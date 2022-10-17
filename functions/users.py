@@ -43,4 +43,5 @@ def refresh_download_permissions(*args):
         )
         for user in active_users:
             print(f"Refreshing IAM download permissions for {user.email}")
-            Permissions.grant_iam_permissions(user, session=session)
+            Permissions.grant_user_permissions(user, session=session)
+        grant_bigquery_access([user.email for user in active_users])

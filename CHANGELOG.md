@@ -9,6 +9,19 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 17 Oct 2022
+
+- `changed` API version update and fix of function name
+
+## 14 Oct 2022
+
+- `changed` API bump for protobuf versioning and functionality fix
+
+## 13 Oct 2022
+
+- `changed` API bump for bigquery permission changes
+- `added` granting bigquery permissions to download perm refresh
+
 ## 12 Oct 2022
 
 - `changed` API bump for switching staging uploader role to temp replacement
