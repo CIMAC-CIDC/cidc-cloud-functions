@@ -25,13 +25,13 @@ def test_refresh_download_permissions(monkeypatch):
     monkeypatch.setattr(users, "Users", UsersMock)
 
     PermissionsMock = MagicMock()
-    PermissionsMock.grant_iam_permissions = MagicMock()
+    PermissionsMock.grant_user_permissions = MagicMock()
     monkeypatch.setattr(users, "Permissions", PermissionsMock)
 
     grant_bigquery_access = MagicMock()
     monkeypatch.setattr("functions.users.grant_bigquery_access", grant_bigquery_access)
 
     users.refresh_download_permissions()
-    assert PermissionsMock.grant_iam_permissions.call_args[0][0] == user
+    assert PermissionsMock.grant_user_permissions.call_args[0][0] == user
     assert len(grant_bigquery_access.call_args[0][0]) == 1
     assert grant_bigquery_access.call_args[0][0][0] == "test@email.com"
