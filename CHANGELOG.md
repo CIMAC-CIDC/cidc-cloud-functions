@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 20 Oct 2022
+
+- `changed` API version bump for consolidation of microbiome and ctdna analysis files
+
 ## 17 Oct 2022
 
 - `changed` API version update and fix of function name
