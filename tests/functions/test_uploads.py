@@ -55,6 +55,7 @@ def test_ingest_upload(caplog, monkeypatch):
             "assays": {
                 "wes": [
                     {
+                        "assay_creator": "MD Anderson",
                         "records": [
                             {
                                 "cimac_id": "CIMAC-mock-sa-id",
