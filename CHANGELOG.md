@@ -11,7 +11,7 @@ This Changelog tracks changes to this project. The notes below include a summary
 
 ## 27 Oct 2022
 
-- `changed` API/schemas bump for clincal count bug fix
+- `changed` API/schemas bump for clinical count bug fix
 
 ## 24 Oct 2022
 
