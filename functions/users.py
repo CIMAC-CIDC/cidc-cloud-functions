@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
 from typing import List
 
-from cidc_api.models import Users, Permissions
-from cidc_api.shared.gcloud_client import send_email, grant_bigquery_access
+from cidc_api.models import Users
+from cidc_api.shared.gcloud_client import (
+    send_email,
+    grant_bigquery_access,
+    refresh_intake_access,
+)
 from cidc_api.shared.emails import CIDC_MAILING_LIST
 
 from .settings import ENV
@@ -42,6 +46,6 @@ def refresh_download_permissions(*args):
             filter_=active_today,
         )
         for user in active_users:
-            print(f"Refreshing IAM download permissions for {user.email}")
-            Permissions.grant_user_permissions(user, session=session)
+            print(f"Refreshing IAM upload permissions for {user.email}")
+            refresh_intake_access(user.email)
         grant_bigquery_access([user.email for user in active_users])
