@@ -9,6 +9,14 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 27 Oct 2022
+
+- `changed` API/schemas bump for clinical count bug fix
+
+## 24 Oct 2022
+
+- `changed` API/schemas bump for MIBI updates
+
 ## 20 Oct 2022
 
 - `changed` API version bump for consolidation of microbiome and ctdna analysis files
