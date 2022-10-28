@@ -9,7 +9,7 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
-## 31 Oct 2022
+## 28 Oct 2022
 
 - `changed` refresh just upload access for active users
   - as object lister IAM permissions and ACL-based download permissions don't expire
