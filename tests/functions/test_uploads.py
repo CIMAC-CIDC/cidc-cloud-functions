@@ -64,7 +64,7 @@ def test_ingest_upload(caplog, monkeypatch):
                                     "r2": {"upload_placeholder": "uuid2"},
                                 },
                             }
-                        ]
+                        ],
                     }
                 ]
             },
