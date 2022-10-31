@@ -9,6 +9,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 31 Oct 2022
+
+- `changed` active user filter to check they are not disabled and approved
+- `changed` api bump: on re-enable of unapproval user, do NOT apply BQ permissions
+
 ## 28 Oct 2022
 
 - `changed` refresh just upload access for active users
