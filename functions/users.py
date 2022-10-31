@@ -36,8 +36,10 @@ def refresh_download_permissions(*args):
     active_today = lambda q: q.filter(
         # Provide a 3 day window to ensure we don't miss anyone
         # if, e.g., this function fails to run on a certain day.
-        Users._accessed
-        > datetime.today() - timedelta(days=3)
+        Users._accessed > datetime.today() - timedelta(days=3),
+        Users.disabled == False,
+        # don't grant permissions unless they've be approved
+        user.approval_date != None,
     )
     with sqlalchemy_session() as session:
         active_users = Users.list(

@@ -23,7 +23,7 @@ def test_refresh_download_permissions(monkeypatch):
     UsersMock = MagicMock()
     UsersMock.list.return_value = [user]
     monkeypatch.setattr(users, "Users", UsersMock)
-    
+
     refresh_intake_access = MagicMock()
     monkeypatch.setattr("functions.users.refresh_intake_access", refresh_intake_access)
 
