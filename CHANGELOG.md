@@ -11,7 +11,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 
 ## 04 Nov 2022
 
-- `changed` api/schemas bump: new front-page counting, update local file path description
+- `changed` api/schemas bump: new front-page counting
+
+## 3 Nov 2022
+
+- `changed` API/schemas bump for adding meta.csv to TCR config returns, update local file path description
 
 ## 31 Oct 2022
 
