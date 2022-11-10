@@ -80,9 +80,18 @@ def test_derive_files_from_upload(monkeypatch):
 
     session = MagicMock()
 
+    def reset_mocks():
+        upload_to_data_bucket.reset_mock()
+        create_from_blob.reset_mock()
+        derive_files.reset_mock()
+        session.reset_mock()
+
     # Call the function
     upload_postprocessing._derive_files_from_upload(
-        "test-trial", "test-upload", session
+        trial_id="test-trial",
+        upload_type="test-upload",
+        upload_id="foo",
+        session=session,
     )
 
     # Check control flow
@@ -92,3 +101,24 @@ def test_derive_files_from_upload(monkeypatch):
     session.commit.assert_called()
     assert blob in create_from_blob.call_args[1].values()
     assert downloadable_file.analysis_friendly is True
+    reset_mocks()
+
+    # test graceful logging on null return
+    derive_files.return_value = None
+    monkeypatch.setattr(upload_postprocessing.unprism, "derive_files", derive_files)
+
+    mock_print = MagicMock()
+    monkeypatch.setattr("builtins.print", mock_print)
+    upload_postprocessing._derive_files_from_upload(
+        trial_id="test-trial",
+        upload_type="test-upload",
+        upload_id="foo",
+        session=session,
+    )
+    derive_files.assert_called()
+    upload_to_data_bucket.assert_not_called()
+    create_from_blob.assert_not_called()
+    session.commit.assert_not_called()
+    mock_print.assert_called_once_with(
+        "No file derivation registered for test-upload - skipping for upload foo"
+    )

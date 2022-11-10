@@ -9,7 +9,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
-## 8 Nov 2022
+## 10 Nov 2022
+
+- `changed` API/schemas bump and handling for null return when there's no file derivation
+
+## 08 Nov 2022
 
 - `changed` API/schemas bump for adding batch to meta.csv for TCR
 
@@ -17,7 +21,7 @@ This Changelog tracks changes to this project. The notes below include a summary
 
 - `changed` api/schemas bump: new front-page counting
 
-## 3 Nov 2022
+## 03 Nov 2022
 
 - `changed` API/schemas bump for adding meta.csv to TCR config returns, update local file path description
 
