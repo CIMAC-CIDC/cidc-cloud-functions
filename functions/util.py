@@ -50,7 +50,7 @@ def sqlalchemy_session():
         session.close()
 
 
-def extract_pubsub_data(event: dict):
+def extract_pubsub_data(event: dict) -> str:
     """Pull out and decode data from a pub/sub event."""
     # Pub/sub event data is base64-encoded
     b64data = event["data"]
