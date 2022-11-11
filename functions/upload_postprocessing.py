@@ -1,3 +1,5 @@
+from typing import Optional
+
 from .util import (
     BackgroundContext,
     extract_pubsub_data,
@@ -19,7 +21,7 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
     """
     Generate derivative files from a manifest upload.
     """
-    upload_id = extract_pubsub_data(event)
+    upload_id: str = extract_pubsub_data(event)
 
     with sqlalchemy_session() as session:
         upload_record: UploadJobs = UploadJobs.find_by_id(upload_id, session=session)
@@ -30,7 +32,10 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
 
         # Run the file derivation
         _derive_files_from_upload(
-            upload_record.trial_id, upload_record.upload_type, session
+            trial_id=upload_record.trial_id,
+            upload_type=upload_record.upload_type,
+            upload_id=upload_id,
+            session=session,
         )
 
 
@@ -38,7 +43,7 @@ def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundC
     """
     Generate derivative files from an assay or analysis upload.
     """
-    upload_id = extract_pubsub_data(event)
+    upload_id: str = extract_pubsub_data(event)
 
     with sqlalchemy_session() as session:
         upload_record: UploadJobs = UploadJobs.find_by_id(upload_id, session=session)
@@ -57,11 +62,14 @@ def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundC
 
         # Run the file derivation
         _derive_files_from_upload(
-            upload_record.trial_id, upload_record.upload_type, session
+            trial_id=upload_record.trial_id,
+            upload_type=upload_record.upload_type,
+            upload_id=upload_id,
+            session=session,
         )
 
 
-def _derive_files_from_upload(trial_id: str, upload_type: str, session):
+def _derive_files_from_upload(trial_id: str, upload_type: str, upload_id: str, session):
     # Get trial metadata JSON for the associated trial
     trial_record: TrialMetadata = TrialMetadata.find_by_trial_id(
         trial_id, session=session
@@ -69,14 +77,27 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, session):
 
     # Run the file derivation
     derivation_context = unprism.DeriveFilesContext(
-        trial_record.metadata_json, upload_type, fetch_artifact
+        trial_metadata=trial_record.metadata_json,
+        upload_type=upload_type,
+        fetch_artifact=fetch_artifact,
     )
-    derivation_result = unprism.derive_files(derivation_context)
+    derivation_result: Optional[unprism.DeriveFilesResult] = unprism.derive_files(
+        context=derivation_context,
+    )
+
+    if derivation_result is None:
+        print(
+            f"No file derivation registered for {upload_type} - skipping for upload {upload_id}"
+        )
+        return
 
     # TODO: consider parallelizing this step if necessary
     for artifact in derivation_result.artifacts:
         # Save to GCS
-        blob = upload_to_data_bucket(artifact.object_url, artifact.data)
+        blob = upload_to_data_bucket(
+            object_name=artifact.object_url,
+            data=artifact.data,
+        )
 
         # Build basic facet group
         facet_group = f"{artifact.data_format}|{artifact.file_type}"
