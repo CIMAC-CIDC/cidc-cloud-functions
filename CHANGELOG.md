@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 17 Nov 2022
+
+- `changed` API/schemas bump for wes bait set swap
+
 ## 10 Nov 2022
 
 - `changed` API/schemas bump and handling for null return when there's no file derivation
