@@ -14,6 +14,8 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `removed` permissioning of biofx groups in ingest_upload
   - separate from main permissions system in API
   - making concurrent updates to the same files via grant_download_permissions_for_upload_job
+- `removed` unused is_group option in granting permissions
+  - was only used by the above now-removed permissioning system
 
 ## 28 Nov 2022
 
