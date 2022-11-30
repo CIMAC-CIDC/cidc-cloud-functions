@@ -9,6 +9,12 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 30 Nov 2022
+
+- `removed` permissioning of biofx groups in ingest_upload
+  - separate from main permissions system in API
+  - making concurrent updates to the same files via grant_download_permissions_for_upload_job
+
 ## 28 Nov 2022
 
 - `changed` API/schemas bump for WES analysis template folder update
