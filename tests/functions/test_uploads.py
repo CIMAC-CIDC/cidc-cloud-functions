@@ -17,7 +17,6 @@ from functions.uploads import ingest_upload, saved_failure_status
 from functions.settings import (
     GOOGLE_ACL_DATA_BUCKET,
     GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC,
-    GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
 )
 
 from tests.util import make_pubsub_event, with_app_context
@@ -95,11 +94,6 @@ def test_ingest_upload(caplog, monkeypatch):
     xlsx_blob = MagicMock()
     _get_bucket_and_blob.return_value = None, xlsx_blob
     monkeypatch.setattr("functions.uploads._get_bucket_and_blob", _get_bucket_and_blob)
-
-    monkeypatch.setattr(
-        "functions.uploads.GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT",
-        {"wes": "analysis-group@email"},
-    )
 
     # mocking `google.cloud.storage.Client()` to not actually create a client
     _storage_client = MagicMock("_storage_client")
@@ -191,17 +185,6 @@ def test_ingest_upload(caplog, monkeypatch):
 
     # Check that triggered downstream processing and biofx permisssions assignment
     expected_calls = [
-        call(
-            str(
-                {
-                    "trial_id": TRIAL_ID,
-                    "upload_type": job.upload_type,
-                    "user_email_list": ["analysis-group@email"],
-                    "is_group": True,
-                }
-            ),
-            GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
-        ),
         call(str(job.id), GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC),
     ]
     assert all(

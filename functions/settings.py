@@ -1,6 +1,5 @@
 """Configuration for CIDC functions."""
 import os
-import json
 
 # Cloud Functions provide the current GCP project id
 # in the environment variable GCP_PROJECT. If this
@@ -29,9 +28,6 @@ GOOGLE_UPLOAD_BUCKET = os.environ.get("GOOGLE_UPLOAD_BUCKET")
 GOOGLE_ACL_DATA_BUCKET = os.environ.get("GOOGLE_ACL_DATA_BUCKET")
 GOOGLE_LOGS_BUCKET = os.environ.get("GOOGLE_LOGS_BUCKET")
 GOOGLE_ANALYSIS_GROUP_ROLE = f"projects/{GCP_PROJECT}/roles/CIDC_biofx"
-GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT = json.loads(
-    os.environ.get("GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT", "{}")
-)
 GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS = 60
 GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC = os.environ.get(
     "GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC"
