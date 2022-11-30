@@ -16,6 +16,7 @@ This Changelog tracks changes to this project. The notes below include a summary
   - making concurrent updates to the same files via grant_download_permissions_for_upload_job
 - `removed` unused is_group option in granting permissions
   - was only used by the above now-removed permissioning system
+- `changed` API bump for parallel removal of is_group
 
 ## 28 Nov 2022
 
