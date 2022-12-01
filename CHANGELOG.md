@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 01 Dec 2022
+
+- `changed` API/schemas bump for dateparser version update
+
 ## 30 Nov 2022
 
 - `removed` permissioning of biofx groups in ingest_upload
