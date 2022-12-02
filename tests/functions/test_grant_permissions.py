@@ -2,7 +2,6 @@ import functions.grant_permissions
 from functions.grant_permissions import grant_download_permissions, permissions_worker
 from functions.settings import GOOGLE_WORKER_TOPIC
 import pytest
-from typing import List, Optional, Union
 from unittest.mock import MagicMock, call
 
 
@@ -11,30 +10,16 @@ def test_grant_download_permissions(monkeypatch):
     user_email_list = ["foo@bar.com", "user@test.com", "cidc@foo.bar"]
     full_email_dict = {
         None: {"bar": [user_email_list[0]]},
-        "foo": {
-            None: [user_email_list[1]],
-            "bar": [user_email_list[2]],
-            "baz": [user_email_list[2]],
-        },
+        "foo": {None: [user_email_list[1]], "bar": [user_email_list[2]]},
         "biz": {"wes": [user_email_list[2]]},
     }
 
-    def mock_get_user_emails(
-        trial_id: Optional[str], upload_type: Optional[Union[str, List[str]]], session
-    ):
-        def upload_matches(this_upload: Optional[str]):
-            if this_upload is None:
-                return True
-            if isinstance(upload_type, str):
-                return this_upload == upload_type
-            else:
-                return this_upload in upload_type
-
+    def mock_get_user_emails(trial_id: str, upload_type: str, session):
         return {
             trial: {
                 upload: users
                 for upload, users in upload_dict.items()
-                if upload_matches(upload)
+                if upload is None or upload == upload_type
             }
             for trial, upload_dict in full_email_dict.items()
             if trial is None or trial == trial_id
@@ -48,7 +33,7 @@ def test_grant_download_permissions(monkeypatch):
 
     mock_blob_name_list = MagicMock()
     # need more than 100 to test chunking
-    mock_blob_name_list.return_value = set([f"blob{n}" for n in range(100 + 50)])
+    mock_blob_name_list.return_value = [f"blob{n}" for n in range(100 + 50)]
     monkeypatch.setattr(
         functions.grant_permissions, "get_blob_names", mock_blob_name_list
     )
@@ -103,7 +88,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list[:1],
-                    "blob_name_list": list(mock_blob_name_list.return_value)[:100],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": False,
                 }
             ),
@@ -114,7 +99,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list[:1],
-                    "blob_name_list": list(mock_blob_name_list.return_value)[100:],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": False,
                 }
             ),
@@ -125,7 +110,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list[1:2],
-                    "blob_name_list": list(mock_blob_name_list.return_value)[:100],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": False,
                 }
             ),
@@ -136,7 +121,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list[1:2],
-                    "blob_name_list": list(mock_blob_name_list.return_value)[100:],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": False,
                 }
             ),
@@ -147,7 +132,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list[-1:],
-                    "blob_name_list": list(mock_blob_name_list.return_value)[:100],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": False,
                 }
             ),
@@ -158,7 +143,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list[-1:],
-                    "blob_name_list": list(mock_blob_name_list.return_value)[100:],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": False,
                 }
             ),
@@ -183,7 +168,7 @@ def test_grant_download_permissions(monkeypatch):
     mock_extract_data.return_value = str(
         {
             "trial_id": "foo",
-            "upload_type": ["bar", "baz"],
+            "upload_type": "bar",
             "user_email_list": user_email_list,
             "revoke": True,
         }
@@ -193,7 +178,7 @@ def test_grant_download_permissions(monkeypatch):
     assert mock_blob_name_list.call_count == 1
     _, kwargs = mock_blob_name_list.call_args
     assert kwargs["trial_id"] == "foo"
-    assert kwargs["upload_type"] == ("bar", "baz")
+    assert kwargs["upload_type"] == "bar"
 
     assert mock_encode_and_publish.call_count == 2
     assert mock_encode_and_publish.call_args_list == [
@@ -202,7 +187,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list,
-                    "blob_name_list": list(mock_blob_name_list.return_value)[:100],
+                    "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": True,
                 }
             ),
@@ -213,7 +198,7 @@ def test_grant_download_permissions(monkeypatch):
                 {
                     "_fn": "permissions_worker",
                     "user_email_list": user_email_list,
-                    "blob_name_list": list(mock_blob_name_list.return_value)[100:],
+                    "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": True,
                 }
             ),
