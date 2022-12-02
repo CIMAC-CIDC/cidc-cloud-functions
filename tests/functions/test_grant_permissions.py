@@ -90,7 +90,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list[:1],
                     "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": False,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -102,7 +101,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list[:1],
                     "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": False,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -114,7 +112,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list[1:2],
                     "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": False,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -126,7 +123,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list[1:2],
                     "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": False,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -138,7 +134,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list[-1:],
                     "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": False,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -150,7 +145,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list[-1:],
                     "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": False,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -195,7 +189,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list,
                     "blob_name_list": mock_blob_name_list.return_value[:100],
                     "revoke": True,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -207,7 +200,6 @@ def test_grant_download_permissions(monkeypatch):
                     "user_email_list": user_email_list,
                     "blob_name_list": mock_blob_name_list.return_value[100:],
                     "revoke": True,
-                    "is_group": False,
                 }
             ),
             GOOGLE_WORKER_TOPIC,
@@ -237,10 +229,10 @@ def test_permissions_worker(monkeypatch):
         user_email_list=user_email_list,
         blob_name_list=blob_name_list,
         revoke=False,
-        is_group=False,
     )
     mock_grant.assert_called_with(
-        user_email_list=user_email_list, blob_name_list=blob_name_list, is_group=False
+        user_email_list=user_email_list,
+        blob_name_list=blob_name_list,
     )
     mock_revoke.assert_not_called()
 
@@ -249,9 +241,9 @@ def test_permissions_worker(monkeypatch):
         user_email_list=user_email_list,
         blob_name_list=blob_name_list,
         revoke=True,
-        is_group=False,
     )
     mock_grant.assert_not_called()
     mock_revoke.assert_called_with(
-        user_email_list=user_email_list, blob_name_list=blob_name_list, is_group=False
+        user_email_list=user_email_list,
+        blob_name_list=blob_name_list,
     )

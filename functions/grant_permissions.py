@@ -43,8 +43,6 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
     user_email_list: List[str]
         a comma separated list of user emails to apply the permissions for
         otherwise loaded from the database for all affected users
-    is_group: bool = False
-        whether to use blob.acl.group instead of blob.acl.user
     """
     try:
         # this returns the str, then convert it to a dict
@@ -66,7 +64,6 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
         # don't grab the trial_id and upload_type from the data here to keep references clear below
 
         revoke = data.get("revoke", False)
-        is_group = data.get("is_group", False)
 
         with sqlalchemy_session() as session:
             try:
@@ -113,7 +110,6 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                                 "user_email_list": user_email_list,
                                 "blob_name_list": chunk,
                                 "revoke": revoke,
-                                "is_group": is_group,
                             }
 
                             report = _encode_and_publish(
@@ -137,7 +133,6 @@ def permissions_worker(
     user_email_list: List[str] = [],
     blob_name_list: List[str] = [],
     revoke: bool = False,
-    is_group: bool = False,
 ):
     if not user_email_list or not blob_name_list:
         data = {"user_email_list": user_email_list, "blob_name_list": blob_name_list}
@@ -150,13 +145,11 @@ def permissions_worker(
             revoke_download_access_from_blob_names(
                 user_email_list=user_email_list,
                 blob_name_list=blob_name_list,
-                is_group=is_group,
             )
         else:
             grant_download_access_to_blob_names(
                 user_email_list=user_email_list,
                 blob_name_list=blob_name_list,
-                is_group=is_group,
             )
     except Exception as e:
         data = {"user_email_list": user_email_list, "blob_name_list": blob_name_list}

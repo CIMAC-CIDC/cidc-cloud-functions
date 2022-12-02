@@ -9,6 +9,23 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 01 Dec 2022
+
+- `changed` API/schemas bump for dateparser version update
+
+## 30 Nov 2022
+
+- `removed` permissioning of biofx groups in ingest_upload
+  - separate from main permissions system in API
+  - making concurrent updates to the same files via grant_download_permissions_for_upload_job
+- `removed` unused is_group option in granting permissions
+  - was only used by the above now-removed permissioning system
+- `changed` API bump for parallel removal of is_group
+
+## 28 Nov 2022
+
+- `changed` API/schemas bump for WES analysis template folder update
+
 ## 17 Nov 2022
 
 - `changed` API/schemas bump for wes bait set swap

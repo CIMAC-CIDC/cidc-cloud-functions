@@ -10,9 +10,7 @@ from datetime import datetime, timedelta
 from .settings import (
     ENV,
     GOOGLE_ACL_DATA_BUCKET,
-    GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC,
     GOOGLE_UPLOAD_BUCKET,
-    GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT,
     GOOGLE_ANALYSIS_GROUP_ROLE,
     GOOGLE_ASSAY_OR_ANALYSIS_UPLOAD_TOPIC,
     GOOGLE_ANALYSIS_PERMISSIONS_GRANT_FOR_DAYS,
@@ -66,9 +64,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
     When a successful upload event is published, move the data associated
     with the upload job into the download bucket and merge the upload metadata
     into the appropriate clinical trial JSON.
-
-    Handles (expiring) IAM permissions role `CIDC_biofx` separately from the main API system.
-    See also: https://github.com/CIMAC-CIDC/cidc-api-gae/blob/fee3b303b397272bbd500289ea64976c5a510b27/cidc_api/models/models.py#L460
     """
     storage_client = storage.Client()
 
@@ -174,28 +169,6 @@ def ingest_upload(event: dict, context: BackgroundContext):
 
         # Update the job metadata to include artifacts
         job.metadata_patch = metadata_patch
-
-        # Making files downloadable by a specified biofx analysis team group
-        # Use grant download permissions cloud function to handle via regular pipeline
-        assay_prefix = job.upload_type.split("_")[0]  # 'wes_bam' -> 'wes'
-        if assay_prefix in GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT:
-            analysis_group_email = GOOGLE_ANALYSIS_PERMISSIONS_GROUPS_DICT[assay_prefix]
-            logger.info(
-                f"Assigning download permissions for biofx: {analysis_group_email}"
-            )
-
-            kwargs = {
-                "trial_id": trial_id,
-                "upload_type": job.upload_type,
-                "user_email_list": [analysis_group_email],
-                "is_group": True,
-            }
-            report = _encode_and_publish(
-                str(kwargs), GOOGLE_GRANT_DOWNLOAD_PERMISSIONS_TOPIC
-            )
-            # Wait for response from pub/sub
-            if report:
-                report.result()
 
         # Save the upload success and trigger email alert if transaction succeeds
         job.ingestion_success(trial, session=session, send_email=True, commit=True)
