@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 09 Dec 2022
+
+- `changed` API/schemas bump for bug fix, new quality of sample option
+
 ## 02 Dec 2022
 
 - `changed` API/schemas bump for updated permissions handling
