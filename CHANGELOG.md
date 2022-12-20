@@ -9,6 +9,12 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 20 Dec 2022
+
+- `changed` API/schemas bump to remove ATACseq analysis batch report
+- `changed` API/schemas bump to lowercase all buckets/instances for biofx
+- `changed` API bump to fix bug in multifile upload_jobs setting
+
 ## 09 Dec 2022
 
 - `changed` API/schemas bump for bug fix, new quality of sample option
