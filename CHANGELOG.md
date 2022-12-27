@@ -9,6 +9,13 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 28 Dec 2022
+
+- `changed` API bump to
+  - deduplicate blobs in revoke
+  - fix blob prefix generation error on uploads without files
+- `fixed` don't error if no users or blobs to apply
+
 ## 27 Dec 2022
 
 - `changed` API/schemas bump to add urine to manifests' type of sample
