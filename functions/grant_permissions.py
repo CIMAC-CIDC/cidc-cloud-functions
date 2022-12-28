@@ -102,7 +102,12 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
 
                 for trial_id, upload_dict in blob_name_dict.items():
                     for upload_type, blob_name_list in upload_dict.items():
-                        user_email_list = user_email_dict[trial_id][upload_type]
+                        user_email_list: List[str] = user_email_dict.get(
+                            trial_id, {}
+                        ).get(upload_type, [])
+
+                        if not user_email_list or not blob_name_list:
+                            continue
 
                         blob_name_list_chunks = [
                             blob_name_list[i : i + BLOBS_PER_CHUNK]
