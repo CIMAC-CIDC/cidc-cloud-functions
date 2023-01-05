@@ -9,7 +9,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
-## 3 Jan 2023
+## 05 Jan 2023
+
+- `changed` API/schemas bump to fix samples/participants prefix for file permissioning
+
+## 03 Jan 2023
 
 - `changed` API bump to not issue new permissions if user is disabled or not approved
 
