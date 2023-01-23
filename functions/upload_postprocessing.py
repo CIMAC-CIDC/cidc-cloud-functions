@@ -10,6 +10,7 @@ from .util import (
 
 from cidc_api.models import (
     DownloadableFiles,
+    Permissions,
     TrialMetadata,
     UploadJobs,
     UploadJobStatus,
