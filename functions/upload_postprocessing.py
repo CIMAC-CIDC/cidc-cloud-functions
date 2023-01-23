@@ -128,7 +128,4 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, upload_id: str, s
     # Update the trial metadata blob (in case the file derivation modified it)
     trial_record.metadata_json = derivation_result.trial_metadata
 
-    if upload_type in prism.SUPPORTED_MANIFESTS:
-        Permissions.grant_download_permissions_for_upload_job(job, session=session)
-
     session.commit()
