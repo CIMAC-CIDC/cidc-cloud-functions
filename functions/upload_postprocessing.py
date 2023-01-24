@@ -10,6 +10,7 @@ from .util import (
 
 from cidc_api.models import (
     DownloadableFiles,
+    Permissions,
     TrialMetadata,
     UploadJobs,
     UploadJobStatus,
@@ -36,6 +37,11 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
             upload_type=upload_record.upload_type,
             upload_id=upload_id,
             session=session,
+        )
+
+        # Trigger download permissions for this upload job
+        Permissions.grant_download_permissions_for_upload_job(
+            upload_record, session=session
         )
 
 
@@ -102,10 +108,14 @@ def _derive_files_from_upload(trial_id: str, upload_type: str, upload_id: str, s
         # Build basic facet group
         facet_group = f"{artifact.data_format}|{artifact.file_type}"
 
+        file_upload_type = upload_type
+        if artifact.file_type in ("participants info", "samples info"):
+            file_upload_type = artifact.file_type
+
         # Save to database
         df_record = DownloadableFiles.create_from_blob(
             trial_id=trial_record.trial_id,
-            upload_type=upload_type,
+            upload_type=file_upload_type,
             data_format=artifact.data_format,
             facet_group=facet_group,
             blob=blob,

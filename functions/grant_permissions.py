@@ -74,7 +74,7 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
 
         with sqlalchemy_session() as session:
             try:
-                if "user_email_list" in data:
+                if data.get("user_email_list"):
                     user_email_dict: Dict[
                         Optional[str], Dict[Optional[Tuple[str]], List[str]]
                     ] = {trial_id: {upload_type: data["user_email_list"]}}
