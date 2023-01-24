@@ -39,6 +39,11 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
             session=session,
         )
 
+        # Trigger download permissions for this upload job
+        Permissions.grant_download_permissions_for_upload_job(
+            upload_record, session=session
+        )
+
 
 def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundContext):
     """
@@ -67,11 +72,6 @@ def derive_files_from_assay_or_analysis_upload(event: dict, context: BackgroundC
             upload_type=upload_record.upload_type,
             upload_id=upload_id,
             session=session,
-        )
-
-        # Trigger download permissions for this upload job
-        Permissions.grant_download_permissions_for_upload_job(
-            upload_record, session=session
         )
 
 
