@@ -47,15 +47,6 @@ def test_assay_or_analysis_preconditions(monkeypatch):
     find_by_id.return_value = None
     monkeypatch.setattr(upload_postprocessing.UploadJobs, "find_by_id", find_by_id)
 
-    grant_download_permissions_for_upload_job = MagicMock(
-        "grant_download_permissions_for_upload_job"
-    )
-    monkeypatch.setattr(
-        upload_postprocessing.Permissions,
-        "grant_download_permissions_for_upload_job",
-        grant_download_permissions_for_upload_job,
-    )
-
     with pytest.raises(Exception, match="No upload record with id"):
         upload_postprocessing.derive_files_from_assay_or_analysis_upload(event, None)
 
