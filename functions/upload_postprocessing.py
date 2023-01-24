@@ -10,6 +10,7 @@ from .util import (
 
 from cidc_api.models import (
     DownloadableFiles,
+    Permissions,
     TrialMetadata,
     UploadJobs,
     UploadJobStatus,
@@ -36,6 +37,11 @@ def derive_files_from_manifest_upload(event: dict, context: BackgroundContext):
             upload_type=upload_record.upload_type,
             upload_id=upload_id,
             session=session,
+        )
+
+        # Trigger download permissions for this upload job
+        Permissions.grant_download_permissions_for_upload_job(
+            upload_record, session=session
         )
 
 

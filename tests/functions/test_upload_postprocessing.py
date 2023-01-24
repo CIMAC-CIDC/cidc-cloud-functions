@@ -16,6 +16,15 @@ def test_manifest_preconditions(monkeypatch):
     find_upload_by_id.return_value = None  # upload record doesn't exist
     monkeypatch.setattr("cidc_api.models.UploadJobs.find_by_id", find_upload_by_id)
 
+    grant_download_permissions_for_upload_job = MagicMock(
+        "grant_download_permissions_for_upload_job"
+    )
+    monkeypatch.setattr(
+        upload_postprocessing.Permissions,
+        "grant_download_permissions_for_upload_job",
+        grant_download_permissions_for_upload_job,
+    )
+
     with pytest.raises(Exception, match="No manifest upload record found"):
         upload_postprocessing.derive_files_from_manifest_upload(event, None)
 
