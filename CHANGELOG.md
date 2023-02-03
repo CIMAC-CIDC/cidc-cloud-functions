@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 02 Feb 2023
+
+- `changed` API bump for permission tweak
+
 ## 23 Jan 2023
 
 - `changed` added trigger to file permissioning on manifest derived file creation
