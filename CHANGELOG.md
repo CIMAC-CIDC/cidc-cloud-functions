@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 08 Feb 2023
+
+- `removed` sending of dev alert email on permissions error
+
 ## 02 Feb 2023
 
 - `changed` API bump for permission tweak

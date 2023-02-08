@@ -164,9 +164,9 @@ def permissions_worker(
     except Exception as e:
         data = {"user_email_list": user_email_list, "blob_name_list": blob_name_list}
         logger.error(f"Error on {data}:\nError:{e}", exc_info=True)
-        send_email(
-            CIDC_MAILING_LIST,
-            f"[DEV ALERT]({ENV}) Error granting permissions: {datetime.now()}",
-            html_content=f"See logs for more info.<br />{e}<br /> For: {data}",
-        )
+        # send_email(
+        #     CIDC_MAILING_LIST,
+        #     f"[DEV ALERT]({ENV}) Error granting permissions: {datetime.now()}",
+        #     html_content=f"See logs for more info.<br />{e}<br /> For: {data}",
+        # )
         raise e
