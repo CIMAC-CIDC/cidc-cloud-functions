@@ -9,6 +9,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 24 Feb 2023
+
+- `changed` API bump for permissions bug fix
+- `changed` better typing and variable handling in grant_permissions function
+
 ## 08 Feb 2023
 
 - `removed` sending of dev alert email on permissions error
