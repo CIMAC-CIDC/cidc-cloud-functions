@@ -49,8 +49,8 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
     try:
         # this returns the str, then convert it to a dict
         # uses event["data"] and then assumes format, so will error if no/malformatted data
-        data: str = extract_pubsub_data(event)
-        data: dict = dict(eval(data))
+        raw_data: str = extract_pubsub_data(event)
+        data: dict = dict(eval(raw_data))
     except:
         raise
 
@@ -66,29 +66,35 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
 
         revoke = data.get("revoke", False)
         trial_id: Optional[str] = data.get("trial_id")
-        upload_type: Optional[Union[str, List[str]]] = data.get("upload_type")
-        if upload_type:
-            if isinstance(upload_type, str):
-                upload_type: Optional[List[str]] = [upload_type]
-            upload_type: Optional[Tuple[str]] = tuple(upload_type)
+
+        upload_type: Optional[Tuple[str]] = None  # this None will always be replaced
+        raw_upload_type: Optional[Union[str, List[str]]] = data.get("upload_type")
+        if raw_upload_type:
+            if isinstance(raw_upload_type, str):
+                upload_type = (raw_upload_type,)
+            else:
+                upload_type = tuple(raw_upload_type)
+        else:
+            upload_dict = raw_upload_type  # type: ignore
 
         with sqlalchemy_session() as session:
+            user_email_dict: Dict[
+                Optional[str], Dict[Optional[Tuple[str]], List[str]]
+            ] = {}  # this empty dict will always be replaced
             try:
                 if data.get("user_email_list"):
-                    user_email_dict: Dict[
-                        Optional[str], Dict[Optional[Tuple[str]], List[str]]
-                    ] = {trial_id: {upload_type: data["user_email_list"]}}
+                    user_email_dict = {trial_id: {upload_type: data["user_email_list"]}}
 
                 else:
-                    user_email_dict: Dict[
-                        Optional[str], Dict[Optional[str], List[str]]
-                    ] = Permissions.get_user_emails_for_trial_upload(
+                    user_email_dict = Permissions.get_user_emails_for_trial_upload(
                         trial_id=data.get("trial_id"),
                         upload_type=data.get("upload_type"),
                         session=session,
                     )
 
-                blob_name_dict: Dict[str, Dict[str, List[str]]] = {
+                blob_name_dict: Dict[
+                    Optional[str], Dict[Optional[Tuple[str]], List[str]]
+                ] = {
                     trial: {
                         upload: list(
                             get_blob_names(
@@ -100,11 +106,14 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                     for trial, upload_dict in user_email_dict.items()
                 }
 
+                upload_dict: Dict[Optional[Tuple[str]], List[str]]
                 for trial_id, upload_dict in blob_name_dict.items():
-                    for upload_type, blob_name_list in upload_dict.items():
+                    upload: Optional[Tuple[str]]
+                    blob_name_list: List[str]
+                    for upload, blob_name_list in upload_dict.items():
                         user_email_list: List[str] = user_email_dict.get(
                             trial_id, {}
-                        ).get(upload_type, [])
+                        ).get(upload, [])
 
                         if not user_email_list or not blob_name_list:
                             continue
