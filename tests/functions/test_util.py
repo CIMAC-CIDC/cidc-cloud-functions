@@ -2,6 +2,7 @@ from io import BytesIO, StringIO
 from unittest.mock import MagicMock
 
 import pytest
+from functions.settings import GOOGLE_ACL_DATA_BUCKET
 
 from tests.util import make_pubsub_event
 from functions import util
@@ -75,3 +76,35 @@ def test_get_blob_as_stream(monkeypatch):
     stream = util.get_blob_as_stream("", as_string=True)
     assert isinstance(stream, StringIO)
     assert stream.read() == blob_str
+
+
+mock_bucket = None
+
+
+class MockStorageClient:
+    def get_bucket(self, *args):
+        return mock_bucket
+
+
+def test_download_blob_bytes(monkeypatch):
+    global mock_bucket
+    mock_blob = MagicMock()
+    mock_blob.download_as_string.return_value = "expected blob contents"
+    mock_bucket = MagicMock()
+    mock_bucket.get_blob.side_effect = [
+        # first call checks that the proper exception is thrown for a missing object
+        None,
+        # second call checks that the contents are returned as expected
+        mock_blob,
+    ]
+
+    monkeypatch.setattr(util.storage, "Client", MockStorageClient)
+
+    object_name = "x/y/z"
+    with pytest.raises(
+        FileNotFoundError,
+        match=f"Could not find file {object_name} in {GOOGLE_ACL_DATA_BUCKET}",
+    ):
+        util._download_blob_bytes(object_name)
+
+    assert util._download_blob_bytes(object_name) == "expected blob contents"

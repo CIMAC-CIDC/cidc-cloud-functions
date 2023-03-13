@@ -90,7 +90,7 @@ def _download_blob_bytes(object_name: str) -> bytes:
     bucket = storage_client.get_bucket(GOOGLE_ACL_DATA_BUCKET)
     blob = bucket.get_blob(object_name)
     if not blob:
-        FileNotFoundError(
+        raise FileNotFoundError(
             f"Could not find file {object_name} in {GOOGLE_ACL_DATA_BUCKET}"
         )
     return blob.download_as_string()
