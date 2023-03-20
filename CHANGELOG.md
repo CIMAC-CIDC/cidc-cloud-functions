@@ -9,6 +9,11 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 20 Mar 2023
+
+- `fixed` bug causing error on cloud issuing of cross-trial permissions
+  - this is interaction with accepted param types from API, so would need integrative testing
+
 ## 24 Feb 2023
 
 - `changed` API bump for permissions bug fix

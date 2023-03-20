@@ -2,7 +2,7 @@ import functions.grant_permissions
 from functions.grant_permissions import grant_download_permissions, permissions_worker
 from functions.settings import GOOGLE_WORKER_TOPIC
 import pytest
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Set, Tuple, Union
 from unittest.mock import MagicMock, call
 
 
@@ -25,6 +25,8 @@ def test_grant_download_permissions(monkeypatch):
         def upload_matches(this_upload: Optional[str]):
             if this_upload is None:
                 return True
+            elif upload_type is None:
+                return False
             if isinstance(upload_type, str):
                 return this_upload == upload_type
             else:
@@ -49,9 +51,19 @@ def test_grant_download_permissions(monkeypatch):
     mock_blob_name_list = MagicMock()
     # need more than 100 to test chunking
     mock_blob_name_list.return_value = set([f"blob{n}" for n in range(100 + 50)])
-    monkeypatch.setattr(
-        functions.grant_permissions, "get_blob_names", mock_blob_name_list
-    )
+
+    def mock_blob_list(
+        trial_id: Optional[str], upload_type: Optional[Tuple[Optional[str]]], **kwargs
+    ) -> Set[str]:
+        """Type check and then pass through to the mock"""
+        assert trial_id is None or isinstance(trial_id, str), type(trial_id)
+        assert upload_type is None or (
+            isinstance(upload_type, tuple)
+            and all([isinstance(u, str) for u in upload_type])
+        ), type(upload_type)
+        return mock_blob_name_list(trial_id=trial_id, upload_type=upload_type, **kwargs)
+
+    monkeypatch.setattr(functions.grant_permissions, "get_blob_names", mock_blob_list)
 
     mock_encode_and_publish = MagicMock()
     monkeypatch.setattr(
@@ -94,7 +106,7 @@ def test_grant_download_permissions(monkeypatch):
     # Note no (biz, wes) as that doesn't match
     for _, kwargs in mock_blob_name_list.call_args_list:
         assert kwargs["trial_id"] in (None, "foo")
-        assert kwargs["upload_type"] in (None, "bar")
+        assert kwargs["upload_type"] in (None, ("bar",))
 
     assert mock_encode_and_publish.call_count == 6
     assert mock_encode_and_publish.call_args_list == [
