@@ -67,15 +67,13 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
         revoke = data.get("revoke", False)
         trial_id: Optional[str] = data.get("trial_id")
 
-        upload_type: Optional[Tuple[str]] = None  # this None will always be replaced
+        upload_type: Optional[Tuple[str]] = None
         raw_upload_type: Optional[Union[str, List[str]]] = data.get("upload_type")
         if raw_upload_type:
             if isinstance(raw_upload_type, str):
                 upload_type = (raw_upload_type,)
             else:
                 upload_type = tuple(raw_upload_type)
-        else:
-            upload_dict = raw_upload_type  # type: ignore
 
         with sqlalchemy_session() as session:
             user_email_dict: Dict[
@@ -98,7 +96,11 @@ def grant_download_permissions(event: dict, context: BackgroundContext):
                     trial: {
                         upload: list(
                             get_blob_names(
-                                trial_id=trial, upload_type=upload, session=session
+                                trial_id=trial,
+                                upload_type=(upload,)
+                                if isinstance(upload, str)
+                                else upload,
+                                session=session,
                             )
                         )
                         for upload in upload_dict.keys()
