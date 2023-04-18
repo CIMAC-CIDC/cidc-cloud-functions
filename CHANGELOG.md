@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 18 Apr 2023
+
+- `fixed` `_download_blob_bytes` should raise FileNotFoundError if the blob to download doesn't exist
+
 ## 24 Feb 2023
 
 - `changed` API bump for permissions bug fix
