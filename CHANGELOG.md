@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 19 Apr 2023
+
+- `changed` API/schemas bump for microbiome req reverse index
+- 
 ## 20 Mar 2023
 
 - `fixed` bug causing error on cloud issuing of cross-trial permissions
