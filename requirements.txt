@@ -19,4 +19,4 @@ matplotlib==3.4.1
 statsmodels==0.12.2
 scikit_learn==0.24.2
 
-cidc-api-modules~=0.27.42
+cidc-api-modules~=0.27.45

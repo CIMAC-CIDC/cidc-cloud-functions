@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 10 July 2023
+
+- API bump for changing CIDC_MAILING_LIST to Essex-managed. See https://github.com/CIMAC-CIDC/cidc-api-gae/pull/813.
+
 ## 27 Apr 2023
 
 - `changed` API/schemas bump for adding serum and allowing dna qc text
