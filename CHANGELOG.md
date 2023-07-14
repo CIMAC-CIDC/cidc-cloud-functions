@@ -9,6 +9,10 @@ This Changelog tracks changes to this project. The notes below include a summary
 - `fixed` for any bug fixes.
 - `security` in case of vulnerabilities.
 
+## 14 July 2023
+
+- `added` transcriptome capture v6 to rna enrichment_method (see https://github.com/CIMAC-CIDC/cidc-api-gae/pull/815)
+
 ## 10 July 2023
 
 - API bump for changing CIDC_MAILING_LIST to Essex-managed. See https://github.com/CIMAC-CIDC/cidc-api-gae/pull/813.
